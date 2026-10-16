@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@customer-service/db": "*",
+    "drizzle-orm": "^0.45.4",
     "zod": "^3.24.2"
   },
   "devDependencies": {
