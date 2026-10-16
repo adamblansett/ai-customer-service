@@ -130,7 +130,7 @@ export class AnthropicProvider implements AiProvider {
         throw new AiProviderError(this.providerId, `Anthropic error (Status ${response.status}): ${errorText}`);
       }
 
-      const json = await response.json();
+      const json: any = await response.json();
       let textContent = '';
       const toolCalls: AiToolCall[] = [];
 

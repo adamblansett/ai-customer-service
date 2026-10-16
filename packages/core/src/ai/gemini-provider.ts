@@ -131,7 +131,7 @@ export class GeminiProvider implements AiProvider {
         throw new AiProviderError(this.providerId, `Gemini error (Status ${response.status}): ${errorText}`);
       }
 
-      const json = await response.json();
+      const json: any = await response.json();
       const candidate = json.candidates?.[0];
       const parts = candidate?.content?.parts || [];
 

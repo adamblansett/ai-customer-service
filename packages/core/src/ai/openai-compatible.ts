@@ -108,7 +108,7 @@ export class OpenAiCompatibleProvider implements AiProvider {
         await this.handleErrorResponse(response);
       }
 
-      const json = await response.json();
+      const json: any = await response.json();
       const choice = json.choices?.[0];
       const message = choice?.message;
 

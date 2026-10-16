@@ -21,7 +21,7 @@ export function createAiProvider(options: ProviderFactoryOptions): AiProvider {
 
     case 'openai':
     case 'groq':
-      if (!options.apiKey && options.type !== 'mock') {
+      if (!options.apiKey) {
         throw new Error(`ApiKeyRequired: Missing API key for provider '${options.type}'.`);
       }
       return new OpenAiCompatibleProvider({
