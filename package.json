@@ -1,0 +1,20 @@
+{
+  "name": "open-source-ai-customer-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Open-source, self-hosted, Docker-first AI customer-service and contact-center platform",
+  "license": "Apache-2.0",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}
