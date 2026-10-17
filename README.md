@@ -40,7 +40,15 @@ An open-source, self-hosted, Docker-first AI customer-service and contact-center
    - Failed transfer fallback: if an agent is busy, times out, or doesn't answer, automatically captures a callback ticket so callers are never abandoned.
    - After-hours routing: schedules next-business-day callbacks.
 
-6. **Web Administration & Agent Console**:
+6. **Bidirectional WebSocket Media Streaming & Sub-500ms Barge-In**:
+   - `MediaStreamGateway` and `MediaStreamSession` for real-time Twilio and FreeSWITCH audio streams.
+   - Immediate audio cancellation (`clear` message frame) when caller interrupts assistant speech.
+
+7. **External CRM & Helpdesk Webhook Dispatcher**:
+   - `CrmDispatcher` automatically forwards callback requests to HubSpot Tickets, Zendesk, Salesforce Cases, and Zapier/Make webhooks.
+   - HMAC-SHA256 request signing (`X-Customer-Service-Signature`) and bearer token authentication.
+
+8. **Web Administration & Agent Console**:
    - Built with **Next.js 14 App Router**, TypeScript, and Tailwind CSS.
    - Live Conversation Monitor with human takeover, transfer, and message injection.
    - Knowledge Base Manager with interactive test search preview.
@@ -49,6 +57,7 @@ An open-source, self-hosted, Docker-first AI customer-service and contact-center
    - Interactive Call Simulator UI for testing phone calls in the browser.
 
 ---
+
 
 ## Monorepo Architecture
 
@@ -103,7 +112,7 @@ The test suite runs against embedded WebAssembly PostgreSQL (`PGlite`) with zero
 ```bash
 npm test
 ```
-All 58 unit, integration, and security tests will execute and pass.
+All 70 unit, integration, and security tests will execute and pass.
 
 ### 4. Build Monorepo
 ```bash

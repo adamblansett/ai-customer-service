@@ -93,4 +93,27 @@ export class TwimlAdapter {
 
     return xml;
   }
+
+  /**
+   * Renders a bidirectional WebSocket Media Stream instruction.
+   */
+  static renderMediaStream(params: {
+    streamUrl: string;
+    customParameters?: Record<string, string>;
+  }): string {
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<Response>\n';
+    xml += '  <Connect>\n';
+    xml += `    <Stream url="${escapeXml(params.streamUrl)}">\n`;
+    if (params.customParameters) {
+      for (const [key, val] of Object.entries(params.customParameters)) {
+        xml += `      <Parameter name="${escapeXml(key)}" value="${escapeXml(val)}"/>\n`;
+      }
+    }
+    xml += '    </Stream>\n';
+    xml += '  </Connect>\n';
+    xml += '</Response>';
+
+    return xml;
+  }
 }
+

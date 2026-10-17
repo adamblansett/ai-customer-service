@@ -151,7 +151,7 @@ describe('Conversation Engine Subsystem', () => {
   });
 
   describe('Idempotency Management', () => {
-    it('detects duplicate events and caches results', () => {
+    it('detects duplicate events and caches results in memory', () => {
       const idempotency = new IdempotencyManager(60000);
       const key = idempotency.makeKey(tenant1Id, 'twilio', 'CallSid_CA12345_seq1');
 
@@ -163,5 +163,41 @@ describe('Conversation Engine Subsystem', () => {
       const record = idempotency.get(key);
       expect(record?.resultPayload).toEqual({ twimlAction: 'gather' });
     });
+
+    it('supports asynchronous operations with distributed Redis adapter', async () => {
+      const redisStore = new Map<string, string>();
+      const mockRedis = {
+        get: async (k: string) => redisStore.get(k) || null,
+        set: async (k: string, v: string) => {
+          redisStore.set(k, v);
+          return 'OK';
+        },
+        exists: async (k: string) => (redisStore.has(k) ? 1 : 0),
+        del: async (k: string) => {
+          const had = redisStore.has(k);
+          redisStore.delete(k);
+          return had ? 1 : 0;
+        },
+      };
+
+      const { RedisIdempotencyStorage } = await import('../conversation/idempotency.js');
+      const redisStorage = new RedisIdempotencyStorage(mockRedis, { keyPrefix: 'test_idemp:' });
+      const idempotency = new IdempotencyManager({ storage: redisStorage });
+
+      const eventKey = idempotency.makeKey('tenant_xyz', 'twilio', 'evt_9999');
+
+      expect(await idempotency.hasAsync(eventKey)).toBe(false);
+
+      await idempotency.recordAsync(eventKey, { status: 'dispatched' });
+
+      expect(await idempotency.hasAsync(eventKey)).toBe(true);
+      const record = await idempotency.getAsync(eventKey);
+      expect(record?.eventKey).toBe(eventKey);
+      expect(record?.resultPayload).toEqual({ status: 'dispatched' });
+
+      // Check key was saved in mockRedis with prefix
+      expect(redisStore.has('test_idemp:' + eventKey)).toBe(true);
+    });
   });
 });
+
