@@ -113,7 +113,7 @@ export function createKnowledgeRouter(db: DatabaseInstance): Router {
           title: crawlResult.title,
           rawContent: crawlResult.content,
           sourceUri: crawlResult.uri,
-          contentType: 'text/html-crawl',
+          contentType: 'text/markdown',
         });
 
         res.status(201).json({ document: doc, crawlResult });
@@ -149,7 +149,7 @@ export function createKnowledgeRouter(db: DatabaseInstance): Router {
               title: item.documentTitle,
               rawContent: item.content,
               sourceUri: item.uri,
-              contentType: 'zendesk-article',
+              contentType: 'text/markdown',
             });
             docs.push(doc);
           }
@@ -167,7 +167,7 @@ export function createKnowledgeRouter(db: DatabaseInstance): Router {
             tenantId,
             title,
             rawContent: mdTable,
-            contentType: 'text/markdown-table',
+            contentType: 'text/markdown',
           });
 
           res.status(201).json({ document: doc });
@@ -183,7 +183,7 @@ export function createKnowledgeRouter(db: DatabaseInstance): Router {
             tenantId,
             title: parsed.documentTitle,
             rawContent: parsed.content,
-            contentType: 'structured-document',
+            contentType: 'text/markdown',
           });
 
           res.status(201).json({ document: doc, parsedInfo: parsed });

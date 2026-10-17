@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import {
   GitFork,
   Play,
@@ -100,6 +101,32 @@ export default function CallFlowsPage() {
   const [simStep, setSimStep] = useState<number>(1);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
+  useEffect(() => {
+    apiFetch<{ flows: any[] }>('/tenants/tenant_acme_hvac_001/flows')
+      .then((res) => {
+        if (res.flows && res.flows.length > 0 && Array.isArray(res.flows[0].nodes) && res.flows[0].nodes.length > 0) {
+          const loadedNodes: VisualNode[] = res.flows[0].nodes.map((n: any) => ({
+            id: n.id,
+            type: n.type || 'greeting',
+            title: n.label || n.title || n.id,
+            description: n.promptText || n.description || `Queue: ${n.queueId || 'default'}`,
+            nextId: n.nextNodeId || n.nextId,
+            branches: Array.isArray(n.branches)
+              ? n.branches.map((b: any) => ({
+                  label: b.label || `Key ${b.condition}`,
+                  targetId: b.targetNodeId || b.targetId,
+                }))
+              : undefined,
+          }));
+          setNodes(loadedNodes);
+          setSelectedNode(loadedNodes[0]);
+        }
+      })
+      .catch(() => {
+        // Fallback to local INITIAL_NODES when API is offline
+      });
+  }, []);
+
   const getNodeIcon = (type: VisualNode['type']) => {
     switch (type) {
       case 'greeting':
@@ -150,7 +177,26 @@ export default function CallFlowsPage() {
     setSimStep((s) => s + 1);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    try {
+      await apiFetch('/tenants/tenant_acme_hvac_001/flows', {
+        method: 'POST',
+        body: JSON.stringify({
+          id: 'flow_acme_default_001',
+          name: 'Main Inbound IVR & Emergency Triage',
+          startNodeId: nodes[0]?.id || 'node_welcome',
+          nodes: nodes.map((n) => ({
+            id: n.id,
+            type: n.type,
+            label: n.title,
+            promptText: n.description,
+            nextNodeId: n.nextId,
+          })),
+        }),
+      });
+    } catch {
+      // Optimistic local state update if backend not reachable
+    }
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
   };

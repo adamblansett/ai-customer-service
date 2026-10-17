@@ -230,6 +230,39 @@ export async function initializeSchemaInPglite(pglite: PGlite): Promise<void> {
       ip_address TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS call_flows (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      description TEXT,
+      start_node_id TEXT NOT NULL,
+      nodes JSONB NOT NULL DEFAULT '[]'::jsonb,
+      version INTEGER NOT NULL DEFAULT 1,
+      published BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS dnc_entries (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      phone_number TEXT NOT NULL,
+      reason TEXT NOT NULL DEFAULT 'user_opt_out',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(tenant_id, phone_number)
+    );
+
+    CREATE TABLE IF NOT EXISTS voiceprints (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      customer_id TEXT NOT NULL,
+      signature_hash TEXT NOT NULL,
+      sample_count INTEGER NOT NULL DEFAULT 1,
+      enrolled_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_verified_at TIMESTAMPTZ,
+      UNIQUE(tenant_id, customer_id)
+    );
   `);
 }
 

@@ -219,5 +219,63 @@ We do not offer phone quotes for complex compressor or refrigerant replacements 
     },
   ]).onConflictDoNothing();
 
+  // 8. Default Call Flow for Acme HVAC
+  await db.insert(schema.callFlows).values([
+    {
+      id: 'flow_acme_default_001',
+      tenantId: tenant1Id,
+      name: 'Main Inbound IVR & Emergency Triage',
+      description: 'Default DAG routing flow for Acme Heating & Cooling',
+      startNodeId: 'node_welcome',
+      nodes: [
+        {
+          id: 'node_welcome',
+          type: 'greeting',
+          label: 'Welcome Greeting',
+          promptText: 'Thank you for calling Acme Heating and Cooling.',
+          nextNodeId: 'node_menu',
+        },
+        {
+          id: 'node_menu',
+          type: 'dtmf_menu',
+          label: 'Main Department Menu',
+          promptText: 'Press 1 for Sales, Press 2 for Emergency, or stay on the line for AI Assistant.',
+          branches: [
+            { condition: '1', targetNodeId: 'node_sales' },
+            { condition: '2', targetNodeId: 'node_dispatch' },
+          ],
+          defaultTargetNodeId: 'node_ai',
+        },
+        {
+          id: 'node_sales',
+          type: 'transfer_queue',
+          label: 'Sales Queue',
+          queueId: 'sales',
+        },
+        {
+          id: 'node_dispatch',
+          type: 'transfer_queue',
+          label: 'Emergency Dispatch',
+          queueId: 'emergency_dispatch',
+        },
+        {
+          id: 'node_ai',
+          type: 'ai_voice',
+          label: 'AI Conversational Assistant',
+          nextNodeId: 'node_hangup',
+        },
+        {
+          id: 'node_hangup',
+          type: 'hangup',
+          label: 'Friendly Hangup',
+          promptText: 'Thank you for calling Acme. Goodbye!',
+        },
+      ],
+      version: 1,
+      published: true,
+    },
+  ]).onConflictDoNothing();
+
   return { tenant1Id, tenant2Id, adminUserId, agentUserId };
 }
+

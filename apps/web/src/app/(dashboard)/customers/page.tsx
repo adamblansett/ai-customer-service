@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import {
   Users,
   Search,
@@ -153,6 +154,29 @@ export default function CustomersPage() {
   const [customers, setCustomers] = useState<CustomerRecord[]>(MOCK_CUSTOMERS);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>(MOCK_CUSTOMERS[0].id);
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    apiFetch<{ customers: any[] }>('/tenants/tenant_acme_hvac_001/customers')
+      .then((res) => {
+        if (res.customers && res.customers.length > 0) {
+          const liveRecords: CustomerRecord[] = res.customers.map((c: any) => ({
+            id: c.id,
+            name: c.name || 'Customer',
+            phone: c.phoneNumber || '+1 (555) 000-0000',
+            email: c.email || 'customer@example.com',
+            totalConversations: 1,
+            averageCsat: 4.5,
+            lifetimeSentiment: 'positive',
+            lastSeen: 'Active',
+            journey: MOCK_CUSTOMERS[0].journey,
+          }));
+          setCustomers([...liveRecords, ...MOCK_CUSTOMERS]);
+        }
+      })
+      .catch(() => {
+        // Fallback to local MOCK_CUSTOMERS when API is offline
+      });
+  }, []);
 
   const selectedCustomer =
     customers.find((c) => c.id === selectedCustomerId) || customers[0];

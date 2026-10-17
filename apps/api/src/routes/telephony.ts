@@ -1,10 +1,14 @@
 import { Router, Request, Response } from 'express';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import * as schema from '@customer-service/db/schema';
 import type { DatabaseInstance } from '@customer-service/db';
-import { TwimlAdapter } from '@customer-service/core';
-import { VoiceCallSimulator } from '@customer-service/core';
-import { MockAiProvider } from '@customer-service/core';
+import {
+  TwimlAdapter,
+  TelnyxAdapter,
+  PlivoAdapter,
+  VoiceCallSimulator,
+  MockAiProvider,
+} from '@customer-service/core';
 
 export function createTelephonyRouter(db: DatabaseInstance): Router {
   const router = Router();
@@ -20,7 +24,6 @@ export function createTelephonyRouter(db: DatabaseInstance): Router {
     const fromNumber = From || '+15550000';
     const toNumber = To || '+15550100';
 
-    // Resolve tenant by query parameter or fallback phone lookup
     let tenantId = queryTenantId;
     if (!tenantId) {
       const [settings] = await db
@@ -40,13 +43,68 @@ export function createTelephonyRouter(db: DatabaseInstance): Router {
 
       res.setHeader('Content-Type', 'text/xml');
       res.send(result.twiml);
-    } catch (err: any) {
+    } catch {
       res.setHeader('Content-Type', 'text/xml');
       res.send(
         TwimlAdapter.renderHangup({
           message: 'We are currently unable to process your call. Please try again later.',
         })
       );
+    }
+  });
+
+  // POST /api/v1/voice/telnyx - Telnyx Call Control v2 Inbound Webhook
+  router.post('/telnyx', async (req: Request, res: Response): Promise<void> => {
+    const event = TelnyxAdapter.parseWebhook(req.body);
+    const tenantId = (req.query.tenantId as string) || 'tenant_acme_hvac_001';
+
+    try {
+      const sim = await defaultSimulator.simulateCallStart({
+        tenantId,
+        fromNumber: event.from || '+15550000',
+        toNumber: event.to || '+15550100',
+      });
+
+      const speakCommand = TelnyxAdapter.buildGatherUsingSpeakCommand({
+        payloadText: sim.aiResponseText,
+        voice: 'female',
+        language: 'en-US',
+      });
+
+      res.status(200).json({
+        provider: 'telnyx',
+        callControlId: event.callControlId || sim.callSid,
+        conversationId: sim.conversationId,
+        action: 'gather_using_speak',
+        command: speakCommand,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Telnyx webhook processing failed' });
+    }
+  });
+
+  // POST /api/v1/voice/plivo - Plivo Inbound Voice Webhook (XML)
+  router.post('/plivo', async (req: Request, res: Response): Promise<void> => {
+    const event = PlivoAdapter.parseWebhook(req.body || {});
+    const tenantId = (req.query.tenantId as string) || 'tenant_acme_hvac_001';
+
+    try {
+      const sim = await defaultSimulator.simulateCallStart({
+        tenantId,
+        fromNumber: event.from || '+15550000',
+        toNumber: event.to || '+15550100',
+      });
+
+      const xml = PlivoAdapter.renderSpeakResponse({
+        message: sim.aiResponseText,
+        actionUrl: `/api/v1/voice/events?callSid=${encodeURIComponent(sim.callSid)}`,
+      });
+
+      res.setHeader('Content-Type', 'text/xml');
+      res.send(xml);
+    } catch {
+      res.setHeader('Content-Type', 'text/xml');
+      res.send(PlivoAdapter.renderHangup('We are unable to process your call right now.'));
     }
   });
 
@@ -61,7 +119,6 @@ export function createTelephonyRouter(db: DatabaseInstance): Router {
       return;
     }
 
-    // Lookup session
     const [callSession] = await db
       .select()
       .from(schema.callSessions)
@@ -95,7 +152,7 @@ export function createTelephonyRouter(db: DatabaseInstance): Router {
   // POST /api/v1/voice/transfer-status - Twilio Dial Status Webhook
   router.post('/transfer-status', async (req: Request, res: Response): Promise<void> => {
     const callSid = (req.query.callSid as string) || req.body?.CallSid;
-    const dialStatus = req.body?.DialCallStatus; // 'completed', 'busy', 'no-answer', 'failed', 'canceled'
+    const dialStatus = req.body?.DialCallStatus;
 
     if (!callSid) {
       res.setHeader('Content-Type', 'text/xml');
@@ -120,7 +177,6 @@ export function createTelephonyRouter(db: DatabaseInstance): Router {
       return;
     }
 
-    // Transfer failed or no answer -> Fallback to callback request capture
     const fallback = await defaultSimulator.simulateTransferFailure({
       tenantId: callSession.tenantId,
       callSid,

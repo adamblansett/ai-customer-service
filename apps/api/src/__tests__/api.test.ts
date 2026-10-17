@@ -434,5 +434,156 @@ describe('API Server Integration & Security Suite', () => {
       }
     });
   });
-});
 
+  describe('Multi-Carrier Webhooks, Coaching, Orchestration, Biometrics & CRM Sync Suite', () => {
+    it('processes Telnyx Call Control v2 and Plivo XML inbound voice webhooks', async () => {
+      // 1. Telnyx Call Control v2 Webhook
+      const telnyxRes = await request(app)
+        .post(`/api/v1/voice/telnyx?tenantId=${tenant1Id}`)
+        .send({
+          data: {
+            event_type: 'call.initiated',
+            payload: {
+              call_control_id: 'v3:telnyx_cc_001',
+              call_leg_id: 'leg_001',
+              direction: 'incoming',
+              from: '+15552223333',
+              to: '+15550199',
+            },
+          },
+        });
+
+      expect(telnyxRes.status).toBe(200);
+      expect(telnyxRes.body.provider).toBe('telnyx');
+      expect(telnyxRes.body.action).toBe('gather_using_speak');
+      expect(telnyxRes.body.command.payload).toContain('Acme Heating');
+
+      // 2. Plivo Inbound XML Webhook
+      const plivoRes = await request(app)
+        .post(`/api/v1/voice/plivo?tenantId=${tenant1Id}`)
+        .send({
+          CallUUID: 'plivo_uuid_001',
+          From: '+15553334444',
+          To: '+15550199',
+          Direction: 'inbound',
+        });
+
+      expect(plivoRes.status).toBe(200);
+      expect(plivoRes.headers['content-type']).toContain('text/xml');
+      expect(plivoRes.text).toContain('<GetDigits');
+      expect(plivoRes.text).toContain('<Speak');
+    });
+
+    it('controls live supervisor coaching modes (silent_monitor, whisper, barge_in)', async () => {
+      const whisperRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/calls/call_coach_001/coaching`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({ mode: 'whisper' });
+
+      expect(whisperRes.status).toBe(200);
+      expect(whisperRes.body.mode).toBe('whisper');
+      expect(whisperRes.body.supervisorAudioRecipients).toEqual(['agent_leg']);
+
+      const bargeRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/calls/call_coach_001/coaching`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({ mode: 'barge_in' });
+
+      expect(bargeRes.status).toBe(200);
+      expect(bargeRes.body.mode).toBe('barge_in');
+      expect(bargeRes.body.supervisorAudioRecipients).toContain('caller_leg');
+      expect(bargeRes.body.supervisorAudioRecipients).toContain('agent_leg');
+    });
+
+    it('orchestrates multi-agent department handoff on an active conversation', async () => {
+      // Initialize a chat session to get a valid conversationId
+      const chatRes = await request(app)
+        .post('/api/v1/chat/public/session')
+        .send({
+          tenantSlug: 'acme-hvac',
+          customerName: 'Multi-Agent Tester',
+        });
+      const convId = chatRes.body.sessionId;
+
+      const orchRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/conversations/${convId}/orchestrate`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({
+          customerMessage: 'I have a question about my invoice charge and payment receipt.',
+        });
+
+      expect(orchRes.status).toBe(200);
+      expect(orchRes.body.orchestration.activeAgent.id).toBe('billing_agent');
+      expect(orchRes.body.orchestration.hasHandedOff).toBe(true);
+    });
+
+    it('enrolls and verifies caller voiceprint in PostgreSQL and scores call fraud risk', async () => {
+      // 1. Enroll voiceprint
+      const enrollRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/security/biometrics/enroll`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({
+          customerId: 'cust_john_doe_001',
+          audioSample: 'my_voice_is_my_passport_verify_me_001',
+        });
+
+      expect(enrollRes.status).toBe(201);
+      expect(enrollRes.body.enrolled).toBe(true);
+
+      // 2. Verify matching voiceprint from PostgreSQL
+      const verifyRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/security/biometrics/verify`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({
+          customerId: 'cust_john_doe_001',
+          audioSample: 'my_voice_is_my_passport_verify_me_001',
+        });
+
+      expect(verifyRes.status).toBe(200);
+      expect(verifyRes.body.verified).toBe(true);
+      expect(verifyRes.body.confidenceScore).toBe(1);
+
+      // 3. Evaluate Call Risk Score
+      const riskRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/security/risk-score`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({
+          fromNumber: 'Anonymous',
+          lineType: 'voip',
+          isAnonymous: true,
+          recentCallCountLastHour: 12,
+        });
+
+      expect(riskRes.status).toBe(200);
+      expect(riskRes.body.assessment.riskLevel).toBe('high');
+      expect(riskRes.body.assessment.recommendation).toBe('block_review');
+    });
+
+    it('synchronizes customer contact and call activity with Salesforce and HubSpot', async () => {
+      const sfSyncRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/crm/sync`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({
+          provider: 'salesforce',
+          contact: {
+            firstName: 'John',
+            lastName: 'Doe',
+            phone: '+15550101',
+            email: 'john.doe@example.com',
+          },
+          callActivity: {
+            externalCallId: 'call_sf_001',
+            contactPhone: '+15550101',
+            direction: 'inbound',
+            durationSeconds: 180,
+            status: 'completed',
+            summary: 'Annual furnace tune-up scheduled.',
+          },
+        });
+
+      expect(sfSyncRes.status).toBe(200);
+      expect(sfSyncRes.body.contactSync.success).toBe(true);
+      expect(sfSyncRes.body.activitySync.success).toBe(true);
+    });
+  });
+});

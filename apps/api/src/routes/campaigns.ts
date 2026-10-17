@@ -1,4 +1,7 @@
 import { Router, Request, Response } from 'express';
+import { randomUUID } from 'node:crypto';
+import { eq, and, desc } from 'drizzle-orm';
+import * as schema from '@customer-service/db/schema';
 import type { DatabaseInstance } from '@customer-service/db';
 import { authMiddleware, requireTenantRole } from '../middleware/auth.js';
 import {
@@ -29,6 +32,15 @@ export function createCampaignsRouter(db: DatabaseInstance): Router {
       }
 
       try {
+        // Hydrate DncRegistry from PostgreSQL before dispatching
+        const dbDncRows = await db
+          .select()
+          .from(schema.dncEntries)
+          .where(eq(schema.dncEntries.tenantId, tenantId));
+        for (const row of dbDncRows) {
+          DncRegistry.addNumber(tenantId, row.phoneNumber, row.reason as any);
+        }
+
         const result = await campaignManager.dispatchCampaign({
           tenantId,
           campaignName,
@@ -45,19 +57,29 @@ export function createCampaignsRouter(db: DatabaseInstance): Router {
     }
   );
 
-  // GET /api/v1/tenants/:tenantId/campaigns/dnc - List Do Not Call entries
+  // GET /api/v1/tenants/:tenantId/campaigns/dnc - List Do Not Call entries from PostgreSQL & Registry
   router.get(
     '/:tenantId/campaigns/dnc',
     authMiddleware,
     requireTenantRole(db, ['owner', 'admin', 'agent']),
     async (req: Request, res: Response): Promise<void> => {
       const tenantId = req.params.tenantId;
+      const dbRows = await db
+        .select()
+        .from(schema.dncEntries)
+        .where(eq(schema.dncEntries.tenantId, tenantId))
+        .orderBy(desc(schema.dncEntries.createdAt));
+
+      for (const row of dbRows) {
+        DncRegistry.addNumber(tenantId, row.phoneNumber, row.reason as any);
+      }
+
       const entries = DncRegistry.listNumbers(tenantId);
       res.json({ dncRegistry: entries });
     }
   );
 
-  // POST /api/v1/tenants/:tenantId/campaigns/dnc - Add number to DNC
+  // POST /api/v1/tenants/:tenantId/campaigns/dnc - Add number to DNC in PostgreSQL & Registry
   router.post(
     '/:tenantId/campaigns/dnc',
     authMiddleware,
@@ -72,6 +94,17 @@ export function createCampaignsRouter(db: DatabaseInstance): Router {
       }
 
       const entry = DncRegistry.addNumber(tenantId, phoneNumber, reason, source);
+
+      await db
+        .insert(schema.dncEntries)
+        .values({
+          id: `dnc_${randomUUID()}`,
+          tenantId,
+          phoneNumber: entry.phoneNumber,
+          reason: entry.reason || 'user_opt_out',
+        })
+        .onConflictDoNothing();
+
       res.status(201).json({ success: true, entry });
     }
   );
@@ -83,7 +116,12 @@ export function createCampaignsRouter(db: DatabaseInstance): Router {
     requireTenantRole(db, ['owner', 'admin']),
     async (req: Request, res: Response): Promise<void> => {
       const { tenantId, phoneNumber } = req.params;
-      const removed = DncRegistry.removeNumber(tenantId, decodeURIComponent(phoneNumber));
+      const decodedPhone = decodeURIComponent(phoneNumber);
+      const removed = DncRegistry.removeNumber(tenantId, decodedPhone);
+
+      await db
+        .delete(schema.dncEntries)
+        .where(and(eq(schema.dncEntries.tenantId, tenantId), eq(schema.dncEntries.phoneNumber, decodedPhone)));
 
       if (!removed) {
         res.status(404).json({ error: 'Phone number was not found on DNC registry.' });

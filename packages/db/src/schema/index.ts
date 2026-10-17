@@ -255,3 +255,51 @@ export const auditEvents = pgTable('audit_events', {
   index('audit_action_idx').on(table.tenantId, table.action),
   index('audit_created_idx').on(table.tenantId, table.createdAt),
 ]);
+
+// -------------------------------------------------------------
+// 14. Call Flows Table (Visual IVR & DAG Routing)
+// -------------------------------------------------------------
+export const callFlows = pgTable('call_flows', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  description: text('description'),
+  startNodeId: text('start_node_id').notNull(),
+  nodes: jsonb('nodes').notNull().default([]),
+  version: integer('version').notNull().default(1),
+  published: boolean('published').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('call_flows_tenant_idx').on(table.tenantId),
+]);
+
+// -------------------------------------------------------------
+// 15. Do-Not-Call (DNC) Registry Table
+// -------------------------------------------------------------
+export const dncEntries = pgTable('dnc_entries', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  phoneNumber: text('phone_number').notNull(),
+  reason: text('reason').notNull().default('user_opt_out'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('dnc_tenant_idx').on(table.tenantId),
+  uniqueIndex('dnc_tenant_phone_idx').on(table.tenantId, table.phoneNumber),
+]);
+
+// -------------------------------------------------------------
+// 16. Voice Biometrics Voiceprints Table
+// -------------------------------------------------------------
+export const voiceprints = pgTable('voiceprints', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  customerId: text('customer_id').notNull(),
+  signatureHash: text('signature_hash').notNull(),
+  sampleCount: integer('sample_count').notNull().default(1),
+  enrolledAt: timestamp('enrolled_at', { withTimezone: true }).defaultNow().notNull(),
+  lastVerifiedAt: timestamp('last_verified_at', { withTimezone: true }),
+}, (table) => [
+  index('voiceprints_tenant_idx').on(table.tenantId),
+  uniqueIndex('voiceprints_tenant_customer_idx').on(table.tenantId, table.customerId),
+]);

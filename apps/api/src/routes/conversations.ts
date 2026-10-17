@@ -3,11 +3,18 @@ import { eq, and, desc } from 'drizzle-orm';
 import * as schema from '@customer-service/db/schema';
 import type { DatabaseInstance } from '@customer-service/db';
 import { authMiddleware, requireTenantRole } from '../middleware/auth.js';
-import { ConversationManager, ChannelType } from '@customer-service/core';
+import {
+  ConversationManager,
+  MultiAgentOrchestrator,
+  type MultiAgentSession,
+} from '@customer-service/core';
+
+const sessionStore = new Map<string, MultiAgentSession>();
 
 export function createConversationsRouter(db: DatabaseInstance): Router {
   const router = Router();
   const convManager = new ConversationManager(db);
+  const orchestrator = new MultiAgentOrchestrator();
 
   // GET /api/v1/tenants/:tenantId/conversations - List with filters
   router.get(
@@ -96,6 +103,59 @@ export function createConversationsRouter(db: DatabaseInstance): Router {
       });
 
       res.status(201).json({ message });
+    }
+  );
+
+  // POST /api/v1/tenants/:tenantId/conversations/:id/orchestrate - Multi-Agent Department Routing
+  router.post(
+    '/:tenantId/conversations/:id/orchestrate',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId, id } = req.params;
+      const { customerMessage } = req.body;
+
+      if (!customerMessage || !customerMessage.trim()) {
+        res.status(400).json({ error: 'customerMessage is required.' });
+        return;
+      }
+
+      try {
+        let session = sessionStore.get(id);
+        if (!session) {
+          session = orchestrator.initSession(tenantId, id);
+          sessionStore.set(id, session);
+        }
+
+        await convManager.addMessage({
+          conversationId: id,
+          tenantId,
+          senderType: 'customer',
+          content: customerMessage.trim(),
+        });
+
+        const turnResult = await orchestrator.routeTurn(session, customerMessage.trim());
+
+        await convManager.addMessage({
+          conversationId: id,
+          tenantId,
+          senderType: 'ai_agent',
+          senderId: turnResult.activeAgent.id,
+          content: turnResult.replyContent,
+          metadata: {
+            department: turnResult.activeAgent.department,
+            hasHandedOff: turnResult.hasHandedOff,
+            handoffReason: turnResult.handoffReason,
+          },
+        });
+
+        res.status(200).json({
+          orchestration: turnResult,
+          session,
+        });
+      } catch (err: any) {
+        res.status(404).json({ error: err.message || 'Conversation not found.' });
+      }
     }
   );
 
