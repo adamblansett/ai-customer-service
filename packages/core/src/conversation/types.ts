@@ -6,7 +6,7 @@ export type ConversationStatus =
   | 'failed'
   | 'interrupted';
 
-export type ChannelType = 'voice' | 'chat' | 'sms' | 'email';
+export type ChannelType = 'voice' | 'chat' | 'sms' | 'email' | 'whatsapp';
 
 export type EscalationState =
   | 'none'

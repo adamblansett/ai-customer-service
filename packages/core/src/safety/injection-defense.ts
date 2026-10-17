@@ -5,6 +5,7 @@ const INJECTION_PATTERNS: RegExp[] = [
   /reveal\s+(your\s+)?(system\s+prompt|initial\s+instructions|secret\s+key)/i,
   /system\s+prompt\s*:/i,
   /\[SYSTEM_OVERRIDE\]/i,
+  /system\s+override\s*:/i,
   /<system>/i,
   /sudo\s+mode/i,
 ];

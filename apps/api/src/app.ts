@@ -17,6 +17,8 @@ import { createChatRouter } from './routes/chat.js';
 import { createAuditRouter } from './routes/audit.js';
 import { createPrivacyRouter } from './routes/privacy.js';
 import { createSmsRouter } from './routes/sms.js';
+import { createEmailRouter } from './routes/email.js';
+import { createWhatsAppRouter } from './routes/whatsapp.js';
 
 export function createApp(db: DatabaseInstance): Express {
   const app = express();
@@ -62,6 +64,8 @@ export function createApp(db: DatabaseInstance): Express {
   app.use('/api/v1/voice', createTelephonyRouter(db));
   app.use('/api/v1/chat', createChatRouter(db));
   app.use('/api/v1/sms', createSmsRouter(db));
+  app.use('/api/v1/email', createEmailRouter(db));
+  app.use('/api/v1/whatsapp', createWhatsAppRouter(db));
 
   // Global Error Handler
   app.use(errorHandler);

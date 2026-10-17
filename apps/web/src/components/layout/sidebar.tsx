@@ -13,14 +13,20 @@ import {
   KeyRound,
   MessageCircleCode,
   ShieldCheck,
+  Users,
+  BarChart3,
+  CreditCard,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
   { href: '/overview', label: 'Overview', icon: LayoutDashboard },
   { href: '/conversations', label: 'Live Conversations', icon: MessagesSquare },
+  { href: '/queues', label: 'Queues & ACD', icon: Users },
+  { href: '/analytics', label: 'Analytics & CSAT', icon: BarChart3 },
   { href: '/knowledge', label: 'Knowledge Base', icon: BookOpen },
   { href: '/calls', label: 'Calls & Callbacks', icon: PhoneCall },
   { href: '/simulator', label: 'Voice Simulator', icon: PhoneForwarded },
+  { href: '/billing', label: 'Billing & Usage', icon: CreditCard },
   { href: '/settings', label: 'Business Settings', icon: Settings },
   { href: '/integrations', label: 'BYOK Integrations', icon: KeyRound },
   { href: '/chat-widget', label: 'Website Chat Demo', icon: MessageCircleCode },

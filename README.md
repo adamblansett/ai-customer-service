@@ -57,28 +57,44 @@ An open-source, self-hosted, Docker-first AI customer-service and contact-center
    - Failed transfer fallback: if an agent is busy, times out, or doesn't answer, automatically captures a callback ticket so callers are never abandoned.
    - After-hours routing: schedules next-business-day callbacks.
 
-10. **Bidirectional WebSocket Media Streaming & Sub-500ms Barge-In**:
+10. **Omnichannel Email & WhatsApp Business Messaging**:
+    - **Inbound Email**: `EmailAdapter` and `EmailConversationHandler` parsing SendGrid, Postmark, and Mailgun webhooks with automatic message threading (`In-Reply-To`), knowledge-grounded AI responses, and prompt injection defense.
+    - **WhatsApp Business Cloud API**: Meta Graph API webhook subscription handshake and real-time message handler producing compliant WhatsApp messaging payloads.
+
+11. **Local & Air-Gapped AI Inference (Ollama & vLLM)**:
+    - First-class providers for self-hosted LLMs: **Ollama** (`OllamaAiProvider`, streaming NDJSON, model discovery) and **vLLM** (`VllmAiProvider`, OpenAI-compatible high-throughput endpoint with 131k context window) enabling 100% air-gapped, zero-cost AI deployments.
+
+12. **Bidirectional WebSocket Media Streaming & Sub-500ms Barge-In**:
     - `MediaStreamGateway` and `MediaStreamSession` for real-time Twilio and FreeSWITCH audio streams.
     - Immediate audio cancellation (`clear` message frame) when caller interrupts assistant speech.
 
-11. **External CRM & Helpdesk Webhook Dispatcher**:
+13. **External CRM & Helpdesk Webhook Dispatcher**:
     - `CrmDispatcher` automatically forwards callback requests to HubSpot Tickets, Zendesk, Salesforce Cases, and Zapier/Make webhooks.
     - HMAC-SHA256 request signing (`X-Customer-Service-Signature`) and bearer token authentication.
 
-12. **SaaS Billing & Consumption Metering Engine**:
+14. **SaaS Billing & Consumption Metering Engine**:
     - `UsageMeter` with multi-tier subscription quotas (`Starter`, `Pro`, `Enterprise`).
     - Tracks voice minutes and AI tokens with configurable overage rate calculations and monthly invoice estimators.
 
-13. **Web Administration & Agent Console**:
-    - Built with **Next.js 14 App Router**, TypeScript, and Tailwind CSS.
+15. **Production Cloud Infrastructure (Kubernetes Helm & Terraform)**:
+    - **Helm Chart** (`deploy/helm/ai-customer-service`): Complete Kubernetes manifests for API replicas, Web console, Ingress with TLS, ConfigMaps, Secrets, and Horizontal Pod Autoscaling (HPA).
+    - **Terraform / OpenTofu Modules** (`deploy/terraform`): Multi-cloud IaC for AWS (ECS Fargate + RDS Postgres + ElastiCache) and GCP (Cloud Run + Cloud SQL + Memorystore).
+
+16. **Live Carrier Sandbox & Developer Tooling**:
+    - Interactive CLI call simulator (`scripts/sandbox/simulate-live-call.ts`) running a full 5-step call lifecycle.
+    - Automated tunnel setup script (`scripts/sandbox/start-tunnel.sh`) for testing real cell phone calls via Twilio with zero deployment friction.
+
+17. **Web Administration & Agent Console**:
+    - Built with **Next.js 14 App Router**, TypeScript, and Tailwind CSS (16 static routes).
+    - Real-time Contact Center Queues & ACD Wallboard (`/queues`) with live staff presence.
+    - Post-Call Analytics & CSAT Scoring (`/analytics`) with compliance auditing and AI summaries.
+    - Subscription & Usage Metering Portal (`/billing`) with quota progress meters and Stripe billing.
     - Live Conversation Monitor with human takeover, transfer, and message injection.
     - Knowledge Base Manager with interactive test search preview.
-    - Business Settings & Operating Hours scheduler.
     - BYOK Credential Manager with masked key displays.
     - Interactive Call Simulator UI for testing phone calls in the browser.
 
 ---
-
 
 ## Monorepo Architecture
 
@@ -87,8 +103,13 @@ An open-source, self-hosted, Docker-first AI customer-service and contact-center
 │   ├── api/          # Express REST API, Voice Webhooks, Call Simulator, Chat endpoints
 │   └── web/          # Next.js 14 App Router Administration & Agent Console
 ├── packages/
-│   ├── core/         # Conversation Engine, AI Providers, Knowledge Retriever, Safety Guards, Telephony
+│   ├── core/         # Conversation Engine, AI Providers (OpenAI, Gemini, Ollama, vLLM), Knowledge, Telephony, Messaging
 │   └── db/           # Drizzle ORM PostgreSQL schema, migrations, PGlite test runner, seed scripts
+├── deploy/
+│   ├── helm/         # Kubernetes Helm Chart (API, Web, Ingress, HPA)
+│   └── terraform/    # Infrastructure-as-Code for AWS and GCP
+├── scripts/
+│   └── sandbox/      # Carrier tunnel and live call simulation scripts
 ├── docker-compose.yml# Production deployment configuration (Postgres, API, Web)
 └── .env.example      # Environment variables template
 ```
@@ -101,6 +122,8 @@ Comprehensive guides for operators, architects, and developers:
 
 - [Platform Architecture & Technical Design](ARCHITECTURE.md): System topology, conversation state machine, data flow, component breakdown, and extension points.
 - [Telephony Integration & Protocol Guide](TELEPHONY.md): Twilio webhooks, Asterisk/FreeSWITCH SIP integration, TwiML protocol, speech interruption (barge-in), and call simulation.
+- [Live Carrier Sandbox & Walkthrough Guide](SANDBOX.md): Step-by-step instructions for testing inbound phone calls, SMS, email, and WhatsApp via local tunnels and simulators.
+- [Cloud Infrastructure as Code Guide](deploy/terraform/README.md): Kubernetes Helm charts and Terraform provisioning instructions for AWS and GCP.
 - [Security & AI Safety Policy](SECURITY.md): Threat model, BYOK encryption, key rotation, RBAC, prohibited action guardrails, prompt injection defenses, and PII scrubbing.
 - [Operational Runbooks & Production Administration](OPERATIONS.md): Deployment, zero-downtime upgrades, PostgreSQL backup/recovery, monitoring metrics, and incident response playbooks.
 - [Commercial Readiness & Monetization Assessment](COMMERCIAL_READINESS.md): SaaS transition roadmap, usage metering schema, billing boundaries, and compliance assessment (SOC2, GDPR, HIPAA, PCI-DSS).
@@ -133,7 +156,7 @@ The test suite runs against embedded WebAssembly PostgreSQL (`PGlite`) with zero
 ```bash
 npm test
 ```
-All 88 unit, integration, and security tests will execute and pass across 15 test suites.
+All 108 unit, integration, and security tests will execute and pass across 18 test suites.
 
 ### 4. Build Monorepo
 ```bash

@@ -1,0 +1,19 @@
+apiVersion: v2
+name: ai-customer-service
+description: Helm chart for deploying the open-source AI Customer Service and Contact Center platform on Kubernetes.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - customer-service
+  - contact-center
+  - ai-voice
+  - twilio
+  - sip
+  - pbx
+home: https://github.com/adamblansett/ai-customer-service
+sources:
+  - https://github.com/adamblansett/ai-customer-service
+maintainers:
+  - name: Platform Engineering
+    email: engineering@customer-service.example.com

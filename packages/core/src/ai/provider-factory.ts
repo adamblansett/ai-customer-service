@@ -3,8 +3,17 @@ import { MockAiProvider, MockProviderOptions } from './mock-provider.js';
 import { OpenAiCompatibleProvider, OpenAiCompatibleConfig } from './openai-compatible.js';
 import { AnthropicProvider, AnthropicConfig } from './anthropic-provider.js';
 import { GeminiProvider, GeminiConfig } from './gemini-provider.js';
+import { OllamaAiProvider, OllamaConfig } from './ollama-provider.js';
+import { VllmAiProvider, VllmConfig } from './vllm-provider.js';
 
-export type ProviderType = 'openai' | 'groq' | 'anthropic' | 'gemini' | 'mock';
+export type ProviderType =
+  | 'openai'
+  | 'groq'
+  | 'anthropic'
+  | 'gemini'
+  | 'mock'
+  | 'ollama'
+  | 'vllm';
 
 export interface ProviderFactoryOptions {
   type: ProviderType;
@@ -46,6 +55,19 @@ export function createAiProvider(options: ProviderFactoryOptions): AiProvider {
         throw new Error("ApiKeyRequired: Missing API key for provider 'gemini'.");
       }
       return new GeminiProvider({
+        apiKey: options.apiKey,
+        baseURL: options.baseURL,
+        defaultModel: options.model,
+      });
+
+    case 'ollama':
+      return new OllamaAiProvider({
+        baseURL: options.baseURL,
+        defaultModel: options.model,
+      });
+
+    case 'vllm':
+      return new VllmAiProvider({
         apiKey: options.apiKey,
         baseURL: options.baseURL,
         defaultModel: options.model,

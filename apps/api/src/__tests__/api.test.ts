@@ -175,5 +175,70 @@ describe('API Server Integration & Security Suite', () => {
       expect(res.text).toContain('hours');
     });
   });
+
+  describe('Inbound Email Webhook', () => {
+    it('handles inbound email, creates conversation, and returns reply payload', async () => {
+      const res = await request(app)
+        .post(`/api/v1/email/inbound?tenantId=${tenant1Id}`)
+        .send({
+          From: 'customer@example.com',
+          To: 'support@acme-hvac.example.com',
+          Subject: 'Heating inquiry',
+          TextBody: 'Do you offer emergency heating support?',
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('delivered');
+      expect(res.body.conversationId).toBeDefined();
+      expect(res.body.reply.subject).toBe('Re: Heating inquiry');
+      expect(res.body.reply.text).toBeDefined();
+    });
+  });
+
+  describe('WhatsApp Webhook Handshake & Messaging', () => {
+    it('verifies webhook subscription handshake challenge', async () => {
+      const res = await request(app)
+        .get('/api/v1/whatsapp/webhook')
+        .query({
+          'hub.mode': 'subscribe',
+          'hub.verify_token': 'customer_service_wa_verify_token',
+          'hub.challenge': 'CHALLENGE_ACCEPTED_99',
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.text).toBe('CHALLENGE_ACCEPTED_99');
+    });
+
+    it('processes inbound WhatsApp message and returns response status', async () => {
+      const res = await request(app)
+        .post(`/api/v1/whatsapp/webhook?tenantId=${tenant1Id}`)
+        .send({
+          object: 'whatsapp_business_account',
+          entry: [
+            {
+              changes: [
+                {
+                  value: {
+                    messages: [
+                      {
+                        from: '15559876543',
+                        id: 'wamid_test_999',
+                        text: { body: 'What are your weekend hours?' },
+                        type: 'text',
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          ],
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('received');
+      expect(res.body.processed).toBe(1);
+      expect(res.body.replies[0].responsePayload.messaging_product).toBe('whatsapp');
+    });
+  });
 });
 

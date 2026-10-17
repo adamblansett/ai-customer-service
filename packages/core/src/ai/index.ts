@@ -4,4 +4,6 @@ export * from './mock-provider.js';
 export * from './openai-compatible.js';
 export * from './anthropic-provider.js';
 export * from './gemini-provider.js';
+export * from './ollama-provider.js';
+export * from './vllm-provider.js';
 export * from './provider-factory.js';
