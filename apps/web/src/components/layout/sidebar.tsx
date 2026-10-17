@@ -16,12 +16,16 @@ import {
   Users,
   BarChart3,
   CreditCard,
+  GitFork,
+  Contact,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
   { href: '/overview', label: 'Overview', icon: LayoutDashboard },
   { href: '/conversations', label: 'Live Conversations', icon: MessagesSquare },
   { href: '/queues', label: 'Queues & ACD', icon: Users },
+  { href: '/flows', label: 'Call Flow & IVR', icon: GitFork },
+  { href: '/customers', label: 'Customer 360', icon: Contact },
   { href: '/analytics', label: 'Analytics & CSAT', icon: BarChart3 },
   { href: '/knowledge', label: 'Knowledge Base', icon: BookOpen },
   { href: '/calls', label: 'Calls & Callbacks', icon: PhoneCall },

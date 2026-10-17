@@ -108,7 +108,8 @@ An open-source, self-hosted, Docker-first AI customer-service and contact-center
     - Automated tunnel setup script (`scripts/sandbox/start-tunnel.sh`) for testing real cell phone calls via Twilio with zero deployment friction.
 
 22. **Web Administration & Agent Console**:
-    - Built with **Next.js 14 App Router**, TypeScript, and Tailwind CSS (16 static routes).
+    - Built with **Next.js 14 App Router**, TypeScript, and Tailwind CSS (18 static routes).
+    - Visual Call Flow Builder (`/flows`) and Customer 360 & Journey Timeline (`/customers`).
     - Live Agent Copilot bar with one-click reply insertion and real-time sentiment escalation badges.
     - Real-time Contact Center Queues & ACD Wallboard (`/queues`) with live supervisor alert banner and whisper takeover.
     - Post-Call Analytics & CSAT Scoring (`/analytics`) with compliance auditing and AI summaries.
@@ -117,6 +118,28 @@ An open-source, self-hosted, Docker-first AI customer-service and contact-center
     - Knowledge Base Manager with interactive test search preview.
     - BYOK Credential Manager with masked key displays.
     - Interactive Call Simulator UI for testing phone calls in the browser.
+
+23. **Visual Call Flow & Interactive IVR Builder (`/flows`)**:
+    - Directed acyclic graph (DAG) call routing engine (`FlowEngine`) with step execution (`greeting`, `menu`, `condition`, `sub_flow`, `agent_transfer`, `ai_agent`, `hangup`).
+    - Interactive flow diagram canvas, step simulator, and REST API management.
+
+24. **Live WebRTC Audio Stream Bridge & Supervisor Coaching**:
+    - `AudioBridge` with three distinct monitoring modes: Silent Monitor (listen-only), Whisper Coaching (speak only to agent), and Barge-in (three-way conference).
+
+25. **Multi-Agent Department Orchestration**:
+    - `MultiAgentOrchestrator` dynamically routing inquiries across specialized department sub-agents (`billing_agent`, `support_agent`, `dispatch_agent`, `general_triage`) with full conversation history and context-preserving handoffs.
+
+26. **Omnichannel Customer 360 & Journey Timeline (`/customers`)**:
+    - `CustomerJourneyService` aggregating cross-channel interactions (voice, SMS, email, WhatsApp, web chat) into a unified chronological timeline with sentiment scores, lifetime value (LTV), total spend, and risk indicators.
+    - Interactive Customer 360 search and timeline viewer console.
+
+27. **Voice Biometrics & Call Risk Scoring**:
+    - `VoiceBiometricsEngine` with acoustic voiceprint enrollment, comparison, and speaker verification.
+    - `CallRiskScorer` analyzing telephony carrier type (VoIP, mobile, landline), call velocity, and known fraud risk factors.
+
+28. **Multi-Carrier Telephony Adapters & Enterprise CRM Synchronization**:
+    - Telephony adapters for **Telnyx Call Control v2** and **Plivo XML** for multi-carrier redundancy.
+    - Two-way CRM synchronization connectors for **Salesforce** (Contacts and Task call logs) and **HubSpot** (Contacts and Engagement Calls).
 
 ---
 

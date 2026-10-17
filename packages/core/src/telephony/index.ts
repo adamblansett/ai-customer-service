@@ -4,4 +4,6 @@ export * from './sip-adapter.js';
 export * from './simulator.js';
 export * from './streams.js';
 export * from './speech.js';
-
+export * from './audio-bridge.js';
+export * from './telnyx-adapter.js';
+export * from './plivo-adapter.js';

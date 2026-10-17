@@ -370,5 +370,69 @@ describe('API Server Integration & Security Suite', () => {
       expect(listRes.body.Resources.some((u: any) => u.id === userId)).toBe(true);
     });
   });
+
+  describe('Call Flows & Visual IVR Management Suite', () => {
+    it('creates a custom call flow and tests step execution', async () => {
+      // 1. Create Call Flow
+      const createRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/flows`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({
+          name: 'Customer Support Flow',
+          startNodeId: 'welcome',
+          nodes: [
+            {
+              id: 'welcome',
+              type: 'greeting',
+              title: 'Welcome',
+              config: { message: 'Thanks for calling Support.' },
+              next: 'ai',
+            },
+            {
+              id: 'ai',
+              type: 'ai_voice',
+              title: 'AI Agent',
+              config: { prompt: 'How can I help?' },
+            },
+          ],
+        });
+
+      expect(createRes.status).toBe(201);
+      const flowId = createRes.body.flow.id;
+
+      // 2. Test Step Simulation
+      const testRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/flows/${flowId}/test`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({});
+
+      expect(testRes.status).toBe(200);
+      expect(testRes.body.step.nodeType).toBe('greeting');
+      expect(testRes.body.step.promptText).toBe('Thanks for calling Support.');
+    });
+  });
+
+  describe('Customer 360 & Omnichannel Journey REST Suite', () => {
+    it('queries customers and retrieves unified customer 360 journey profile', async () => {
+      // 1. List Customers
+      const listRes = await request(app)
+        .get(`/api/v1/tenants/${tenant1Id}/customers`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`);
+
+      expect(listRes.status).toBe(200);
+      expect(Array.isArray(listRes.body.customers)).toBe(true);
+
+      if (listRes.body.customers.length > 0) {
+        const testCustId = listRes.body.customers[0].id;
+        const journeyRes = await request(app)
+          .get(`/api/v1/tenants/${tenant1Id}/customers/${testCustId}/journey`)
+          .set('Authorization', `Bearer ${acmeAdminToken}`);
+
+        expect(journeyRes.status).toBe(200);
+        expect(journeyRes.body.profile.id).toBe(testCustId);
+        expect(Array.isArray(journeyRes.body.profile.journeyEvents)).toBe(true);
+      }
+    });
+  });
 });
 

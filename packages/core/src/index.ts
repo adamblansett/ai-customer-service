@@ -4,6 +4,7 @@ export * from './security/rbac.js';
 export * from './security/tenant.js';
 export * from './security/sso.js';
 export * from './security/scim.js';
+export * from './security/biometrics.js';
 
 export * from './conversation/types.js';
 export * from './conversation/state-machine.js';
@@ -20,4 +21,6 @@ export * from './analytics/index.js';
 export * from './billing/index.js';
 export * from './copilot/index.js';
 export * from './campaigns/index.js';
-
+export * from './flows/index.js';
+export * from './customer/index.js';
+export * from './crm/index.js';

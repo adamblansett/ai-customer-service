@@ -22,6 +22,8 @@ import { createWhatsAppRouter } from './routes/whatsapp.js';
 import { createCampaignsRouter } from './routes/campaigns.js';
 import { createSsoRouter } from './routes/sso.js';
 import { createScimRouter } from './routes/scim.js';
+import { createFlowsRouter } from './routes/flows.js';
+import { createCustomersRouter } from './routes/customers.js';
 
 export function createApp(db: DatabaseInstance): Express {
   const app = express();
@@ -67,6 +69,8 @@ export function createApp(db: DatabaseInstance): Express {
   app.use('/api/v1/tenants', createAuditRouter(db));
   app.use('/api/v1/tenants', createPrivacyRouter(db));
   app.use('/api/v1/tenants', createCampaignsRouter(db));
+  app.use('/api/v1/tenants', createFlowsRouter(db));
+  app.use('/api/v1/tenants', createCustomersRouter(db));
   app.use('/api/v1/voice', createTelephonyRouter(db));
   app.use('/api/v1/chat', createChatRouter(db));
   app.use('/api/v1/sms', createSmsRouter(db));

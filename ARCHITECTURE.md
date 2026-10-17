@@ -159,3 +159,15 @@ The architecture is designed for modular extensibility:
    `OutboundCampaignManager` enforces TCPA calling hours (`CallingHoursGuard`) and Do-Not-Call compliance (`DncRegistry`) across proactive SMS and voice broadcast campaigns.
 8. **Enterprise Identity (SSO & SCIM 2.0)**:
    `SsoManager` supports SAML 2.0 assertions and OIDC ID tokens with directory group-to-role mapping, while `ScimProvisioner` implements RFC 7644 user provisioning and lifecycle synchronization.
+9. **Visual Call Flow & Interactive IVR Engine**:
+   `FlowEngine` executes Directed Acyclic Graph (DAG) call flows across step types (`greeting`, `menu`, `condition`, `sub_flow`, `agent_transfer`, `ai_agent`, `hangup`) linked to the visual flow canvas at `/flows`.
+10. **Live WebRTC Audio Bridge & Supervisor Coaching**:
+    `AudioBridge` enables supervisory intervention in active calls via three non-destructive modes: `silent_monitor` (eavesdrop), `whisper` (coach agent privately), and `barge_in` (three-way conference).
+11. **Multi-Agent Department Orchestration**:
+    `MultiAgentOrchestrator` performs intent classification and delegates queries to specialized sub-agents (`billing_agent`, `support_agent`, `dispatch_agent`, `general_triage`) with seamless context handoffs.
+12. **Omnichannel Customer 360 & Journey Timeline**:
+    `CustomerJourneyService` aggregates cross-channel events into chronological customer profiles at `/customers` with computed sentiment metrics, LTV, total spend, and churn risk.
+13. **Voice Biometrics & Call Risk Scoring**:
+    `VoiceBiometricsEngine` and `CallRiskScorer` provide acoustic voiceprint authentication and real-time fraud assessment based on line type, velocity, and risk parameters.
+14. **Carrier Adapters & Enterprise CRM Synchronization**:
+    `TelnyxAdapter` and `PlivoAdapter` provide carrier redundancy, while `SalesforceCrmConnector` and `HubspotCrmConnector` provide bidirectional Contact and Call Activity synchronization.
