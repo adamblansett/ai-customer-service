@@ -170,6 +170,27 @@ export default function QueuesPage() {
         </div>
       )}
 
+      {/* Supervisor Attention Banner */}
+      <div className="p-4 bg-rose-50 border border-rose-200 text-rose-900 text-xs rounded-xl flex items-center justify-between gap-3 shadow-2xs">
+        <div className="flex items-center gap-2.5">
+          <ShieldAlert className="w-5 h-5 text-rose-600 flex-shrink-0 animate-bounce" />
+          <div>
+            <span className="font-bold text-rose-800 block text-sm">
+              Live Supervisor Alert: High Frustration Detected
+            </span>
+            <span className="text-rose-700">
+              Call <strong className="font-mono">+1 (555) 349-2041</strong> triggered critical escalation phrase. Caller requested immediate supervisor review.
+            </span>
+          </div>
+        </div>
+        <button
+          onClick={() => handleAssignToMe('q-101')}
+          className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-lg text-xs shadow-xs transition-colors flex-shrink-0"
+        >
+          Intervene & Whisper
+        </button>
+      </div>
+
       {/* Wallboard Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">

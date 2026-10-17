@@ -150,4 +150,12 @@ The architecture is designed for modular extensibility:
 3. **CRM & Ticketing Integrations**:
    The `EscalationEngine` emits structured `callback_request` events that can be easily dispatched to external ticketing systems (Salesforce, Zendesk, HubSpot) via webhooks.
 4. **Omnichannel Messaging**:
-   The `ConversationEngine` is channel-agnostic. New message channels (SMS, WhatsApp, Email) can ingest messages and dispatch replies by invoking `ConversationManager.handleMessage()` with the appropriate `channel` tag.
+   The `ConversationEngine` is channel-agnostic. Inbound channels (SMS, WhatsApp, Email) ingest messages and dispatch replies by invoking `ConversationManager.handleMessage()` with the appropriate `channel` tag.
+5. **Real-Time Agent Copilot & Supervisor Assist**:
+   `AgentCopilot` processes live conversational turns, extracts sentiment indicators, alerts supervisors on high-severity events, and generates AI-grounded reply suggestions and wrap-up dispositions.
+6. **Automated Knowledge Ingestion Pipeline**:
+   Connectors (`WebCrawlerConnector`, `DocumentParserConnector`, `ZendeskHelpCenterConnector`) ingest HTML, CSV tables, multi-page PDFs, and Zendesk articles into normalized Markdown for semantic retrieval.
+7. **Outbound Notification Campaigns & DNC**:
+   `OutboundCampaignManager` enforces TCPA calling hours (`CallingHoursGuard`) and Do-Not-Call compliance (`DncRegistry`) across proactive SMS and voice broadcast campaigns.
+8. **Enterprise Identity (SSO & SCIM 2.0)**:
+   `SsoManager` supports SAML 2.0 assertions and OIDC ID tokens with directory group-to-role mapping, while `ScimProvisioner` implements RFC 7644 user provisioning and lifecycle synchronization.

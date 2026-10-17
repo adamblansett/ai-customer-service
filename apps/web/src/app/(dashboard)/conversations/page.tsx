@@ -19,6 +19,9 @@ import {
   PhoneOff,
   Smartphone,
   Volume2,
+  Sparkles,
+  Lightbulb,
+  ShieldAlert,
 } from 'lucide-react';
 
 
@@ -470,6 +473,63 @@ export default function ConversationsPage() {
                   })
                 )}
               </div>
+
+              {/* Real-Time Agent Copilot Suggestions & Sentiment */}
+              {activeConversation.status !== 'closed' && (
+                <div className="px-4 py-2.5 bg-sky-50/50 border-t border-sky-100 flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-sky-800 flex items-center gap-1.5 uppercase tracking-wider">
+                      <Sparkles className="w-3.5 h-3.5 text-sky-600" />
+                      <span>Copilot Live Assist</span>
+                    </span>
+
+                    {/* Live Sentiment & Escalation Badge */}
+                    <span className="inline-flex items-center gap-1 text-[10px] bg-white border border-slate-200 px-2 py-0.5 rounded-full font-medium text-slate-700 shadow-2xs">
+                      <span>Sentiment:</span>
+                      <strong className="text-emerald-700">Positive (88%)</strong>
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 items-center">
+                    <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                      <Lightbulb className="w-3 h-3 text-amber-500" /> Suggested:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAgentReplyText(
+                          'Our standard diagnostic fee is $89 and includes a complete system inspection.'
+                        )
+                      }
+                      className="text-[11px] bg-white hover:bg-sky-100 text-slate-700 border border-slate-200 hover:border-sky-300 px-2.5 py-1 rounded-md shadow-2xs transition-colors"
+                    >
+                      "Diagnostic fee is $89..."
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAgentReplyText(
+                          'I have an emergency technician available today at 2:00 PM if you would like me to schedule a visit.'
+                        )
+                      }
+                      className="text-[11px] bg-white hover:bg-sky-100 text-slate-700 border border-slate-200 hover:border-sky-300 px-2.5 py-1 rounded-md shadow-2xs transition-colors"
+                    >
+                      "Tech available today at 2 PM..."
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAgentReplyText(
+                          'May I verify your physical service address and phone number for our dispatch notes?'
+                        )
+                      }
+                      className="text-[11px] bg-white hover:bg-sky-100 text-slate-700 border border-slate-200 hover:border-sky-300 px-2.5 py-1 rounded-md shadow-2xs transition-colors"
+                    >
+                      "Verify address & phone..."
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Agent Reply Box */}
               {activeConversation.status !== 'closed' ? (

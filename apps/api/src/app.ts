@@ -19,6 +19,9 @@ import { createPrivacyRouter } from './routes/privacy.js';
 import { createSmsRouter } from './routes/sms.js';
 import { createEmailRouter } from './routes/email.js';
 import { createWhatsAppRouter } from './routes/whatsapp.js';
+import { createCampaignsRouter } from './routes/campaigns.js';
+import { createSsoRouter } from './routes/sso.js';
+import { createScimRouter } from './routes/scim.js';
 
 export function createApp(db: DatabaseInstance): Express {
   const app = express();
@@ -53,6 +56,8 @@ export function createApp(db: DatabaseInstance): Express {
 
   // Mount API v1 Routers
   app.use('/api/v1/auth', createAuthRouter(db));
+  app.use('/api/v1/auth/sso', createSsoRouter(db));
+  app.use('/api/v1/scim/v2', createScimRouter(db));
   app.use('/api/v1/tenants', createTenantsRouter(db));
   app.use('/api/v1/tenants', createCredentialsRouter(db));
   app.use('/api/v1/tenants', createKnowledgeRouter(db));
@@ -61,6 +66,7 @@ export function createApp(db: DatabaseInstance): Express {
   app.use('/api/v1/tenants', createSimulatorRouter(db));
   app.use('/api/v1/tenants', createAuditRouter(db));
   app.use('/api/v1/tenants', createPrivacyRouter(db));
+  app.use('/api/v1/tenants', createCampaignsRouter(db));
   app.use('/api/v1/voice', createTelephonyRouter(db));
   app.use('/api/v1/chat', createChatRouter(db));
   app.use('/api/v1/sms', createSmsRouter(db));

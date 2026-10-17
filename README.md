@@ -80,13 +80,37 @@ An open-source, self-hosted, Docker-first AI customer-service and contact-center
     - **Helm Chart** (`deploy/helm/ai-customer-service`): Complete Kubernetes manifests for API replicas, Web console, Ingress with TLS, ConfigMaps, Secrets, and Horizontal Pod Autoscaling (HPA).
     - **Terraform / OpenTofu Modules** (`deploy/terraform`): Multi-cloud IaC for AWS (ECS Fargate + RDS Postgres + ElastiCache) and GCP (Cloud Run + Cloud SQL + Memorystore).
 
-16. **Live Carrier Sandbox & Developer Tooling**:
+16. **Real-Time Agent Copilot & Supervisor Assist**:
+    - `AgentCopilot` providing live AI-suggested customer replies grounded in verified knowledge base chunks.
+    - Continuous conversational sentiment analysis detecting critical escalation indicators (e.g. legal threats, severe dissatisfaction) and alerting supervisors with live intervention options.
+    - Automated disposition drafting generating resolution status, conversation summaries, and key topics for seamless agent wrap-up.
+
+17. **Automated Knowledge Ingestion Pipeline**:
+    - `WebCrawlerConnector` HTML scraper extracting and converting public web documentation into clean Markdown.
+    - `DocumentParserConnector` translating CSV tabular price lists and structured multi-section PDF/DOCX extracts into indexed markdown tables.
+    - `ZendeskHelpCenterConnector` importing knowledge base articles with draft filtering and source attribution.
+
+18. **Outbound Proactive Notification Campaigns & DNC Management**:
+    - `OutboundCampaignManager` dispatching voice calls and SMS alerts (appointment reminders, weather advisories).
+    - `DncRegistry` enforcing tenant-scoped Do-Not-Call compliance and automatic opt-out registration when recipients reply with "STOP" or "UNSUBSCRIBE".
+    - `CallingHoursGuard` enforcing TCPA calling windows (08:00–21:00 recipient local time).
+
+19. **Enterprise Identity, SAML 2.0 / OIDC & SCIM 2.0 Provisioning**:
+    - `SsoManager` supporting SAML 2.0 assertions and OIDC ID tokens from Okta, Azure AD / Entra ID, and Google Workspace with automatic directory group-to-role mapping (`owner`, `admin`, `agent`).
+    - RFC 7644 `ScimProvisioner` exposing standard SCIM 2.0 REST endpoints (`/scim/v2/:tenantId/Users`) for automated identity lifecycle management.
+
+20. **Containerized End-to-End Smoke Test & Local Deployment Verification**:
+    - Automated verification script (`scripts/sandbox/docker-smoke-test.sh`) validating Docker Compose syntax, network topology, container readiness probes, and synthetic call flows.
+    - Comprehensive [Container Deployment & Verification Guide](DOCKER_VERIFICATION.md).
+
+21. **Live Carrier Sandbox & Developer Tooling**:
     - Interactive CLI call simulator (`scripts/sandbox/simulate-live-call.ts`) running a full 5-step call lifecycle.
     - Automated tunnel setup script (`scripts/sandbox/start-tunnel.sh`) for testing real cell phone calls via Twilio with zero deployment friction.
 
-17. **Web Administration & Agent Console**:
+22. **Web Administration & Agent Console**:
     - Built with **Next.js 14 App Router**, TypeScript, and Tailwind CSS (16 static routes).
-    - Real-time Contact Center Queues & ACD Wallboard (`/queues`) with live staff presence.
+    - Live Agent Copilot bar with one-click reply insertion and real-time sentiment escalation badges.
+    - Real-time Contact Center Queues & ACD Wallboard (`/queues`) with live supervisor alert banner and whisper takeover.
     - Post-Call Analytics & CSAT Scoring (`/analytics`) with compliance auditing and AI summaries.
     - Subscription & Usage Metering Portal (`/billing`) with quota progress meters and Stripe billing.
     - Live Conversation Monitor with human takeover, transfer, and message injection.
@@ -127,6 +151,7 @@ Comprehensive guides for operators, architects, and developers:
 - [Security & AI Safety Policy](SECURITY.md): Threat model, BYOK encryption, key rotation, RBAC, prohibited action guardrails, prompt injection defenses, and PII scrubbing.
 - [Operational Runbooks & Production Administration](OPERATIONS.md): Deployment, zero-downtime upgrades, PostgreSQL backup/recovery, monitoring metrics, and incident response playbooks.
 - [Commercial Readiness & Monetization Assessment](COMMERCIAL_READINESS.md): SaaS transition roadmap, usage metering schema, billing boundaries, and compliance assessment (SOC2, GDPR, HIPAA, PCI-DSS).
+- [Container Deployment & Verification Guide](DOCKER_VERIFICATION.md): Multi-stage builds, container health probes, and automated smoke test.
 - [Contributing Guidelines](CONTRIBUTING.md): Monorepo standards, TypeScript guidelines, development setup, and pull request procedures.
 
 
@@ -156,7 +181,7 @@ The test suite runs against embedded WebAssembly PostgreSQL (`PGlite`) with zero
 ```bash
 npm test
 ```
-All 108 unit, integration, and security tests will execute and pass across 18 test suites.
+All 127 unit, integration, and security tests will execute and pass across 22 test suites.
 
 ### 4. Build Monorepo
 ```bash

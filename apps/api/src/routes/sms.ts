@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { eq } from 'drizzle-orm';
 import * as schema from '@customer-service/db/schema';
 import type { DatabaseInstance } from '@customer-service/db';
-import { SmsAdapter, SmsConversationHandler, MockAiProvider } from '@customer-service/core';
+import { SmsAdapter, SmsConversationHandler, MockAiProvider, DncRegistry } from '@customer-service/core';
 
 export function createSmsRouter(db: DatabaseInstance): Router {
   const router = Router();
@@ -22,6 +22,18 @@ export function createSmsRouter(db: DatabaseInstance): Router {
         .where(eq(schema.businessSettings.fallbackPhone, payload.to));
 
       tenantId = settings?.tenantId || 'tenant_acme_hvac_001';
+    }
+
+    // Automated TCPA / CTIA Opt-Out Handling
+    if (DncRegistry.checkOptOutKeywords(payload.body)) {
+      DncRegistry.addNumber(tenantId, payload.from, 'User opt-out via SMS', 'sms');
+      res.setHeader('Content-Type', 'text/xml');
+      res.send(
+        SmsAdapter.renderReply(
+          'You have successfully been unsubscribed and added to our Do Not Call list. No further automated messages will be sent.'
+        )
+      );
+      return;
     }
 
     try {

@@ -240,5 +240,135 @@ describe('API Server Integration & Security Suite', () => {
       expect(res.body.replies[0].responsePayload.messaging_product).toBe('whatsapp');
     });
   });
+
+  describe('Outbound Campaigns & DNC Management Suite', () => {
+    it('dispatches outbound proactive notification campaign and manages DNC registry', async () => {
+      // 1. Add number to DNC
+      const dncRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/campaigns/dnc`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({
+          phoneNumber: '+15554443333',
+          reason: 'Customer explicitly requested no automated calls',
+        });
+
+      expect(dncRes.status).toBe(201);
+      expect(dncRes.body.entry.phoneNumber).toBe('+15554443333');
+
+      // 2. Query DNC list
+      const listRes = await request(app)
+        .get(`/api/v1/tenants/${tenant1Id}/campaigns/dnc`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`);
+
+      expect(listRes.status).toBe(200);
+      expect(listRes.body.dncRegistry.some((e: any) => e.phoneNumber === '+15554443333')).toBe(true);
+
+      // 3. Dispatch campaign
+      const dispatchRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/campaigns/dispatch`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({
+          campaignName: 'Urgent Weather Advisory',
+          channel: 'sms',
+          messageTemplate: 'Hi {{name}}, freezing temperatures expected tonight. Check your heat pump!',
+          bypassCallingHours: true,
+          recipients: [
+            { recipientPhone: '+15551112222', recipientName: 'Alice' },
+            { recipientPhone: '+15554443333', recipientName: 'Bob' }, // On DNC
+          ],
+        });
+
+      expect(dispatchRes.status).toBe(200);
+      expect(dispatchRes.body.totalRecipients).toBe(2);
+      expect(dispatchRes.body.dispatchedCount).toBe(1);
+      expect(dispatchRes.body.blockedDncCount).toBe(1);
+
+      // 4. Inbound STOP keyword over SMS adds to DNC
+      const stopSmsRes = await request(app)
+        .post('/api/v1/sms/inbound')
+        .type('form')
+        .send({
+          From: '+15559998888',
+          To: '+15559876543',
+          Body: 'STOP',
+          MessageSid: 'SM_stop_test_001',
+        });
+
+      expect(stopSmsRes.status).toBe(200);
+      expect(stopSmsRes.text).toContain('unsubscribed and added to our Do Not Call list');
+
+      // Verify that +15559998888 is now on DNC list
+      const afterStopList = await request(app)
+        .get(`/api/v1/tenants/${tenant1Id}/campaigns/dnc`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`);
+
+      expect(afterStopList.body.dncRegistry.some((e: any) => e.phoneNumber === '+15559998888')).toBe(true);
+    });
+  });
+
+  describe('Enterprise SSO & SCIM 2.0 Integration Suite', () => {
+    it('authenticates enterprise user via SAML assertion and returns session token with mapped role', async () => {
+      const mockSaml = `
+        <saml:Assertion xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion">
+          <saml:Subject>
+            <saml:NameID>saml.user@acme-hvac.example.com</saml:NameID>
+          </saml:Subject>
+          <saml:AttributeStatement>
+            <saml:Attribute Name="displayName">
+              <saml:AttributeValue>SAML Test Agent</saml:AttributeValue>
+            </saml:Attribute>
+            <saml:Attribute Name="email">
+              <saml:AttributeValue>saml.user@acme-hvac.example.com</saml:AttributeValue>
+            </saml:Attribute>
+            <saml:Attribute Name="memberOf">
+              <saml:AttributeValue>Support-Agents</saml:AttributeValue>
+            </saml:Attribute>
+          </saml:AttributeStatement>
+        </saml:Assertion>
+      `;
+
+      const res = await request(app)
+        .post(`/api/v1/auth/sso/${tenant1Id}/saml`)
+        .send({ xmlAssertion: mockSaml });
+
+      expect(res.status).toBe(200);
+      expect(res.body.token).toBeDefined();
+      expect(res.body.user.email).toBe('saml.user@acme-hvac.example.com');
+      expect(res.body.user.role).toBe('agent');
+    });
+
+    it('provisions and queries enterprise user via RFC 7644 SCIM 2.0 API', async () => {
+      // 1. Create User via SCIM
+      const createRes = await request(app)
+        .post(`/api/v1/scim/v2/${tenant1Id}/Users`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({
+          schemas: ['urn:ietf:params:scim:schemas:core:2.0:User'],
+          userName: 'scim.provisioned@acme-hvac.example.com',
+          name: {
+            givenName: 'Scim',
+            familyName: 'User',
+            formatted: 'Scim User',
+          },
+          emails: [{ value: 'scim.provisioned@acme-hvac.example.com', primary: true }],
+          active: true,
+          roles: [{ value: 'agent' }],
+        });
+
+      expect(createRes.status).toBe(201);
+      expect(createRes.body.schemas).toContain('urn:ietf:params:scim:schemas:core:2.0:User');
+      expect(createRes.body.userName).toBe('scim.provisioned@acme-hvac.example.com');
+      const userId = createRes.body.id;
+
+      // 2. Query SCIM Users List
+      const listRes = await request(app)
+        .get(`/api/v1/scim/v2/${tenant1Id}/Users`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`);
+
+      expect(listRes.status).toBe(200);
+      expect(listRes.body.schemas).toContain('urn:ietf:params:scim:api:messages:2.0:ListResponse');
+      expect(listRes.body.Resources.some((u: any) => u.id === userId)).toBe(true);
+    });
+  });
 });
 
