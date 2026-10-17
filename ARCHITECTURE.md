@@ -92,12 +92,15 @@ stateDiagram-v2
 - **AI Abstraction Layer**: Standardized `AiProvider` interface with deterministic mock provider and production adapters for OpenAI, Anthropic, Google Gemini, and Groq. Handles error classification (`AiRateLimitError`, `AiAuthError`, `AiTimeoutError`, `AiContextLengthError`).
 - **Business Knowledge Base**: Semantic Markdown/text chunker with token bounds and BM25 search with source attribution.
 - **Safety Engine**: Pre-flight prompt injection scanner, isolated XML delimiter context wrapping, and hardcoded prohibited tool guards (`issue_refund`, `modify_policy`, `execute_shell_command`).
-- **Telephony Adapters**: XML-safe TwiML generation, Asterisk/FreeSWITCH SIP normalization, and offline `VoiceCallSimulator`.
-- **Escalation & Operating Hours**: Timezone-aware schedule evaluator with E.164 number validation and automatic fallback callback ticketing.
+- **Telephony & Speech Adapters**: XML-safe TwiML generation, Asterisk/FreeSWITCH SIP normalization, `SpeechPipeline` (Deepgram Nova-2 STT & ElevenLabs Flash TTS), and offline `VoiceCallSimulator`.
+- **Escalation, Operating Hours & ACD Queues**: Timezone-aware schedule evaluator with E.164 number validation, automatic fallback callback ticketing, and `CallQueueManager` for multi-tier skills-based routing with longest-idle agent distribution.
+- **Omnichannel SMS Messaging**: `SmsAdapter` and `SmsConversationHandler` processing multi-turn SMS dialog with prompt defense and knowledge retrieval.
+- **Post-Call Analytics & CSAT**: `ConversationAnalyzer` extracting multi-turn sentiment, CSAT scores (1–5), resolution flags, compliance verification (AI disclosure & recording notice), and AI summaries.
+- **Usage Metering & Billing Engine**: `UsageMeter` tracking voice minutes and AI token consumption across tiers (`Starter`, `Pro`, `Enterprise`) with overage calculations.
 
 ### 3. `apps/api` (REST & Webhook Server)
 - Express.js application exposing port `3001`.
-- Webhooks: `/api/v1/voice/inbound`, `/api/v1/voice/events`, `/api/v1/voice/transfer-status`.
+- Webhooks: `/api/v1/voice/inbound`, `/api/v1/voice/events`, `/api/v1/voice/transfer-status`, `/api/v1/sms/inbound`.
 - Chat API: `/api/v1/chat/public/session`, `/api/v1/chat/public/message`.
 - Admin API: `/api/v1/admin/conversations`, `/api/v1/admin/knowledge`, `/api/v1/admin/integrations`.
 - Privacy & Retention: `/api/v1/privacy/purge-retention`, `/api/v1/privacy/export-data`.

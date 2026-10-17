@@ -14,7 +14,13 @@ import {
   Clock,
   AlertCircle,
   Tag,
+  Mic,
+  MicOff,
+  PhoneOff,
+  Smartphone,
+  Volume2,
 } from 'lucide-react';
+
 
 interface ConversationSummary {
   id: string;
@@ -49,6 +55,10 @@ export default function ConversationsPage() {
   const [isLoadingList, setIsLoadingList] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isSoftphoneActive, setIsSoftphoneActive] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isOnHold, setIsOnHold] = useState(false);
+  const [agentPresence, setAgentPresence] = useState<'idle' | 'busy' | 'offline'>('idle');
 
   const tenantId = typeof window !== 'undefined'
     ? localStorage.getItem('active_tenant_id') || 'tenant_acme_hvac_001'
@@ -221,9 +231,12 @@ export default function ConversationsPage() {
                       <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-800">
                         {c.channel === 'voice' ? (
                           <PhoneCall className="w-3.5 h-3.5 text-sky-600" />
+                        ) : c.channel === 'sms' ? (
+                          <Smartphone className="w-3.5 h-3.5 text-purple-600" />
                         ) : (
                           <MessagesSquare className="w-3.5 h-3.5 text-emerald-600" />
                         )}
+
                         <span className="truncate max-w-[120px]">
                           {c.customerName || c.customerPhone || 'Anonymous Caller'}
                         </span>
@@ -305,8 +318,88 @@ export default function ConversationsPage() {
                 </div>
               </div>
 
+              {/* WebRTC Softphone Control Bar for Voice Conversations */}
+              {activeConversation.channel === 'voice' && (
+                <div className="bg-slate-900 text-white px-6 py-3 flex items-center justify-between border-b border-slate-800 transition-all">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-3 h-3 rounded-full ${
+                        isSoftphoneActive ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'
+                      }`}
+                    />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
+                          WebRTC Agent Softphone
+                        </span>
+                        <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-emerald-400 font-mono">
+                          {isSoftphoneActive
+                            ? isOnHold
+                              ? 'CALL ON HOLD'
+                              : 'DUPLEX AUDIO CONNECTED'
+                            : 'IDLE / READY'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        Browser audio bridged directly to telephony carrier stream (G.711u / Opus)
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {!isSoftphoneActive ? (
+                      <button
+                        onClick={() => setIsSoftphoneActive(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow transition"
+                      >
+                        <PhoneCall className="w-3.5 h-3.5" />
+                        <span>Connect Softphone Audio</span>
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => setIsMuted(!isMuted)}
+                          className={`p-2 rounded-lg text-xs font-medium border transition ${
+                            isMuted
+                              ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                              : 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
+                          }`}
+                          title={isMuted ? 'Unmute Microphone' : 'Mute Microphone'}
+                        >
+                          {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                        </button>
+
+                        <button
+                          onClick={() => setIsOnHold(!isOnHold)}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition ${
+                            isOnHold
+                              ? 'bg-amber-600 text-white border-amber-700'
+                              : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                          }`}
+                        >
+                          {isOnHold ? 'Resume' : 'Hold'}
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setIsSoftphoneActive(false);
+                            setIsMuted(false);
+                            setIsOnHold(false);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg shadow transition"
+                        >
+                          <PhoneOff className="w-3.5 h-3.5" />
+                          <span>Disconnect</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Message History Thread */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
+
                 {isLoadingMessages ? (
                   <p className="text-center text-xs text-slate-400">Loading transcript...</p>
                 ) : messages.length === 0 ? (

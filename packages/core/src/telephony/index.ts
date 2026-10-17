@@ -3,3 +3,5 @@ export * from './twiml-adapter.js';
 export * from './sip-adapter.js';
 export * from './simulator.js';
 export * from './streams.js';
+export * from './speech.js';
+

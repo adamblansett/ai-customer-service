@@ -22,35 +22,26 @@ This document provides a realistic, production-minded evaluation of the platform
 
 ## 2. Usage Metering Interfaces & Billing Boundaries
 
-To support managed hosting, usage tiers, or consumption billing, the platform defines clear metering interfaces:
+To support managed hosting, usage tiers, or consumption billing, the platform includes a production metering and subscription engine in `packages/core/src/billing/meter.ts` (`UsageMeter`):
 
 ### Metered Dimensions
 1. **Telephony Voice Minutes**:
    - Tracked in `call_sessions` via `duration_seconds`.
-   - Billed based on total connected call duration.
+   - Evaluated against subscription tier quotas (e.g., 500 min for Starter, 3,000 min for Pro, unlimited for Enterprise).
 2. **AI Provider Tokens (Prompt & Completion)**:
    - Tracked per conversation turn.
-   - Allows tracking costs even when the customer uses platform-provided shared AI credits.
+   - Quota evaluated with automatic per-1k token overage calculations.
 3. **Active Support Agent Seats**:
    - Tracked in `tenant_memberships` where `role IN ('owner', 'admin', 'agent')`.
    - Enables standard per-seat monthly subscription tiers.
 4. **Knowledge Base Storage Chunks**:
    - Tracked in `knowledge_chunks`.
-   - Enables storage-based tier enforcement (e.g., Free Tier: 50 chunks; Enterprise: unlimited).
+   - Enables storage-based tier enforcement (e.g., Starter: 50 chunks; Pro: 500 chunks; Enterprise: unlimited).
 
-### Usage Metering Database Schema Extension
-```sql
-CREATE TABLE tenant_usage_records (
-    id VARCHAR(64) PRIMARY KEY,
-    tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    metric_type VARCHAR(32) NOT NULL, -- 'voice_seconds', 'llm_tokens_input', 'llm_tokens_output', 'seat_count'
-    quantity INTEGER NOT NULL,
-    recorded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    metadata JSONB
-);
-
-CREATE INDEX idx_tenant_usage_date ON tenant_usage_records(tenant_id, metric_type, recorded_at);
-```
+### Subscription Tier Definitions (`UsageMeter`)
+- **Starter Plan**: $49/mo base fee, 500 included voice minutes, 100k included AI tokens, $0.05/min voice overage, $0.003/1k token overage.
+- **Pro Plan**: $199/mo base fee, 3,000 included voice minutes, 1M included AI tokens, $0.035/min voice overage, $0.002/1k token overage.
+- **Enterprise Plan**: Custom base fee, unlimited minutes and tokens with custom SLA and dedicated infrastructure.
 
 ---
 
@@ -118,13 +109,16 @@ flowchart TD
 
 ---
 
-## 6. Real-Time Telephony: Current Turn-Based Webhooks vs. Ultra-Low-Latency WebSockets
+## 6. Real-Time Telephony: Turn-Based Webhooks & Ultra-Low-Latency WebSockets
 
-### Current Architectural Verification
-The current voice architecture relies on **TwiML turn-by-turn webhooks** (`<Gather input="speech">` and `<Dial>`). This architecture is:
+### 1. Turn-Based TwiML Webhooks
+The turn-by-turn voice architecture relies on **TwiML webhooks** (`<Gather input="speech">` and `<Dial>`). This architecture is:
 - **Highly reliable**: Standard HTTP request/response model with predictable error handling.
 - **Zero daemon footprint**: Requires no high-concurrency streaming servers, GPU infrastructure, or complex binary WebSockets.
 - **Broadly compatible**: Works with Twilio, Telnyx, Plivo, and standard PBX CURL/AGI dialplans.
 
-### Future High-Scale WebSocket Evolution
-For conversational experiences requiring sub-500ms interruptions (barge-in while the AI is mid-sentence), the recommended roadmap addition is an optional **Bidirectional Media Stream WebSocket Gateway** (e.g. Twilio Media Streams or FreeSWITCH `mod_audio_fork` connected to Deepgram/Whisper and ElevenLabs/Cartesia). The existing `ConversationEngine` and `SafetyEngine` interfaces are already decoupled from HTTP and ready to process streaming audio frames directly.
+### 2. Bidirectional WebSocket Media Streams & Streaming Speech Engine (Implemented)
+For conversational experiences requiring sub-500ms interruptions (barge-in while the AI is mid-sentence), the platform provides:
+- **`MediaStreamGateway` & `MediaStreamSession`**: Located in `packages/core/src/telephony/stream.ts`. Ingests base64/binary PCM audio packets, handles `media`, `mark`, and `clear` frames, and cancels in-flight TTS playback instantly upon caller interruption.
+- **`SpeechPipeline` & Providers**: Located in `packages/core/src/telephony/speech.ts`. Seamlessly integrates streaming STT (Deepgram Nova-2) and neural TTS (ElevenLabs Flash v2), tested with zero-cost mock providers.
+

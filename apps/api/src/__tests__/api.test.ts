@@ -156,4 +156,24 @@ describe('API Server Integration & Security Suite', () => {
       expect(messageRes.body.sources.length).toBeGreaterThan(0);
     });
   });
+
+  describe('Inbound SMS Webhook', () => {
+    it('handles Twilio inbound SMS and returns TwiML message response', async () => {
+      const res = await request(app)
+        .post(`/api/v1/sms/inbound?tenantId=${tenant1Id}`)
+        .send({
+          MessageSid: 'SM_api_test_001',
+          From: '+15551112233',
+          To: '+18005550199',
+          Body: 'What are your hours?',
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.header['content-type']).toContain('text/xml');
+      expect(res.text).toContain('<Response>');
+      expect(res.text).toContain('<Message>');
+      expect(res.text).toContain('hours');
+    });
+  });
 });
+

@@ -13,3 +13,9 @@ export * from './knowledge/index.js';
 export * from './safety/index.js';
 export * from './telephony/index.js';
 export * from './escalation/index.js';
+export * from './messaging/index.js';
+export * from './analytics/index.js';
+export * from './billing/index.js';
+
+
+

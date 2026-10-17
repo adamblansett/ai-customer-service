@@ -178,3 +178,58 @@ The `VoiceCallSimulator` test harness emulates:
 3. Conversational AI reasoning and TTS XML output generation.
 4. Human transfer requests.
 5. Transfer failure simulation (`busy` / `no-answer`) and verified callback ticket persistence.
+
+---
+
+## 6. Streaming Speech-to-Text & Text-to-Speech Engine
+
+For full-duplex low-latency voice bots, `packages/core/src/telephony/speech.ts` implements a provider-neutral audio processing pipeline:
+
+```mermaid
+flowchart LR
+    Caller[Inbound Audio Stream / WebRTC] -->|Raw Audio Buffers| Pipeline[SpeechPipeline]
+    Pipeline -->|Chunk Ingestion| STT[Deepgram Nova-2 / STT Provider]
+    STT -->|Transcribed Text| ConvEngine[Conversation Engine]
+    ConvEngine -->|Response Utterance| TTS[ElevenLabs / TTS Provider]
+    TTS -->|Synthesized Audio Stream| Caller
+```
+
+- **`SttProvider`**: Pluggable interface for streaming speech recognition (`DeepgramSttProvider`, `MockSpeechProvider`).
+- **`TtsProvider`**: Pluggable interface for streaming neural voice synthesis (`ElevenLabsTtsProvider`, `MockSpeechProvider`).
+- **`SpeechPipeline`**: Coordinates audio chunk buffering, silence detection, utterance transcription events, and automated speech synthesis dispatch.
+
+---
+
+## 7. Contact Center Queues & Automatic Call Distribution (ACD)
+
+When human escalation occurs, `packages/core/src/escalation/queue.ts` provides multi-tenant Automatic Call Distribution (`CallQueueManager`):
+
+- **Priority Tiers**: Enqueues callers by priority (`urgent`, `high`, `normal`, `low`) with timestamp-based FIFO ordering within each tier.
+- **Skills-Based Routing**: Matches caller requests with agents possessing matching skill tags (e.g., `['billing', 'hvac-tier2', 'spanish']`).
+- **Assignment Strategies**:
+  - `longest-idle`: Routes incoming call to the available agent with the earliest `lastCallCompletedAt` timestamp.
+  - `round-robin`: Evenly rotates calls across available staff.
+- **Abandonment & Queue Metrics**: Tracks real-time active callers, wait times, and caller abandonment (`dequeueCall`).
+
+---
+
+## 8. SMS Messaging Channel
+
+The platform supports conversational SMS interactions via `packages/core/src/messaging/sms.ts` and `POST /api/v1/sms/inbound`:
+
+- **Carrier Inbound Webhook**: Receives standard Twilio SMS webhooks (`From`, `To`, `Body`, `MessageSid`).
+- **Customer Identity Resolution**: Looks up or creates customer records using E.164 phone numbers.
+- **Unified Engine**: Routes SMS turns through prompt injection defenses, tenant knowledge base BM25 search, and AI synthesis.
+- **TwiML Response**: Returns `<Response><Message>{AI Response}</Message></Response>` formatted for concise mobile messaging.
+
+---
+
+## 9. WebRTC In-Browser Agent Softphone
+
+The Next.js agent console (`apps/web/src/app/(dashboard)/conversations/page.tsx`) features an embedded WebRTC softphone interface:
+
+- **Agent Call Bar**: Displays live duplex call status (`Connected`, `On Hold`, `Muted`).
+- **One-Click Controls**:
+  - **Mute / Unmute**: Toggles local microphone audio input.
+  - **Hold / Resume**: Suspends two-way audio stream and plays configured comfort music.
+  - **Disconnect**: Ends active call session and logs disposition metrics.
