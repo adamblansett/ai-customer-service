@@ -15,6 +15,7 @@ import { createTelephonyRouter } from './routes/telephony.js';
 import { createSimulatorRouter } from './routes/simulator.js';
 import { createChatRouter } from './routes/chat.js';
 import { createAuditRouter } from './routes/audit.js';
+import { createPrivacyRouter } from './routes/privacy.js';
 
 export function createApp(db: DatabaseInstance): Express {
   const app = express();
@@ -56,6 +57,7 @@ export function createApp(db: DatabaseInstance): Express {
   app.use('/api/v1/tenants', createCallsRouter(db));
   app.use('/api/v1/tenants', createSimulatorRouter(db));
   app.use('/api/v1/tenants', createAuditRouter(db));
+  app.use('/api/v1/tenants', createPrivacyRouter(db));
   app.use('/api/v1/voice', createTelephonyRouter(db));
   app.use('/api/v1/chat', createChatRouter(db));
 
