@@ -195,6 +195,28 @@ The stack provisions:
 
 ---
 
+## ⚖️ Legal Disclaimer & Limitation of Liability
+
+### 1. "AS IS" and Express Warranty Disclaimer
+This software, documentation, automated conversational workflows, AI agent pipelines, telephony integrations, and messaging infrastructure are provided on an **"AS IS"** and **"AS AVAILABLE"** basis, **WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND**, either express, implied, statutory, or otherwise. To the maximum extent permitted by applicable law, the author, copyright holders, and contributors expressly disclaim all warranties, including but not limited to implied warranties of merchantability, fitness for a particular purpose, title, quiet enjoyment, and non-infringement.
+
+### 2. Conversational AI Non-Determinism & No Emergency Services
+- **AI Output Non-Determinism:** Autonomous customer service agents rely on large language models that are non-deterministic and capable of generating inaccurate, incomplete, misleading, or unexpected statements. The software should not be deployed to make binding legal, contractual, medical, financial, or safety commitments without appropriate human supervision, approval gates, and guardrails.
+- **CRITICAL: NO EMERGENCY SERVICES:** THIS SOFTWARE IS **NOT** INTENDED, DESIGNED, LICENSED, OR AUTHORIZED FOR USE IN EMERGENCY COMMUNICATIONS, EMERGENCY SERVICES DISPATCH (SUCH AS 911, E911, 999, 112, OR PUBLIC SAFETY ANSWERING POINTS), OR LIFE-CRITICAL SYSTEMS.
+
+### 3. Telecommunications & Regulatory Compliance (TCPA, CAN-SPAM, WhatsApp, GDPR)
+- The deployment of automated voice calls, SMS messages, WhatsApp chats, and marketing emails is subject to strict international, federal, and state regulations (including the US Telephone Consumer Protection Act [TCPA], the CAN-SPAM Act, CTIA Messaging Principles, the Meta WhatsApp Business Policy, and the EU General Data Protection Regulation [GDPR]).
+- Users and deploying organizations are solely and exclusively responsible for obtaining lawful prior express written consent from recipients, honoring opt-outs (e.g. STOP requests), managing unsubscribes, maintaining audit logs, and adhering to carrier registration requirements (e.g. A2P 10DLC).
+- The author and contributors disclaim all liability for regulatory fines, statutory damages (including statutory TCPA damages of $500–$1,500 per call/text), carrier surcharges, or legal actions resulting from the use or deployment of this software.
+
+### 4. Limitation of Liability
+To the maximum extent permitted by applicable law, **IN NO EVENT SHALL THE AUTHOR, COPYRIGHT HOLDERS, OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, PUNITIVE, OR CONSEQUENTIAL DAMAGES** (including, but not limited to, loss of use, data, revenue, profits, business, or goodwill; regulatory fines or penalties; telephony billing charges; carrier suspensions; customer disputes; or procurement of substitute goods or services), however caused and on any theory of liability, whether in contract, strict liability, tort (including negligence or otherwise), or statute, arising in any way out of the use, reproduction, modification, distribution, or reliance upon this software, even if advised of the possibility of such damages.
+
+### 5. Third-Party Trademarks & Non-Affiliation
+All product names, logos, brands, and registered trademarks mentioned within this project (including Twilio, WhatsApp, Meta, OpenAI, Ollama, vLLM, Docker, Next.js, and PostgreSQL) are the property of their respective owners. Mention of these entities does not imply endorsement, sponsorship, or affiliation with the author.
+
+---
+
 ## License & Rationale
 
 Licensed under the [Apache License, Version 2.0](LICENSE).
