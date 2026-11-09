@@ -3,14 +3,15 @@ import {
   AiGenerateRequest,
   AiGenerateResponse,
   AiStreamChunk,
+  AiToolCall,
   ModelCapabilities,
   AiTimeoutError,
   AiProviderError,
 } from './types.js';
 
 export interface OllamaConfig {
-  baseURL?: string; // defaults to 'http://localhost:11434'
-  defaultModel?: string; // defaults to 'llama3.3:latest'
+  baseURL?: string; // defaults to BUILT_IN_AI_URL or 'http://localhost:11434'
+  defaultModel?: string; // defaults to 'qwen2.5:7b-instruct' (Apache 2.0)
 }
 
 export class OllamaAiProvider implements AiProvider {
@@ -19,8 +20,16 @@ export class OllamaAiProvider implements AiProvider {
   private baseURL: string;
 
   constructor(config: OllamaConfig = {}) {
-    this.baseURL = (config.baseURL || 'http://localhost:11434').replace(/\/+$/, '');
-    this.defaultModel = config.defaultModel || 'llama3.3:latest';
+    this.baseURL = (
+      config.baseURL ||
+      process.env.BUILT_IN_AI_URL ||
+      process.env.OLLAMA_BASE_URL ||
+      'http://localhost:11434'
+    ).replace(/\/+$/, '');
+    this.defaultModel =
+      config.defaultModel ||
+      process.env.BUILT_IN_AI_MODEL ||
+      'qwen2.5:7b-instruct';
   }
 
   getCapabilities(_model?: string): ModelCapabilities {
@@ -63,8 +72,19 @@ export class OllamaAiProvider implements AiProvider {
       },
     };
 
+    if (request.tools && request.tools.length > 0) {
+      body.tools = request.tools.map((t) => ({
+        type: 'function',
+        function: {
+          name: t.name,
+          description: t.description,
+          parameters: t.parameters,
+        },
+      }));
+    }
+
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60000);
+    const timeout = setTimeout(() => controller.abort(), request.timeoutMs ?? 60000);
 
     try {
       const res = await fetch(url, {
@@ -87,18 +107,29 @@ export class OllamaAiProvider implements AiProvider {
 
       const json = (await res.json()) as any;
       const content = json.message?.content || '';
+      const rawToolCalls = json.message?.tool_calls || [];
+      const toolCalls: AiToolCall[] = Array.isArray(rawToolCalls)
+        ? rawToolCalls.map((tc: any, idx: number) => ({
+            id: tc.id || `call_${idx + 1}`,
+            name: tc.function?.name || tc.name || 'unknown_tool',
+            arguments:
+              typeof tc.function?.arguments === 'string'
+                ? JSON.parse(tc.function.arguments || '{}')
+                : tc.function?.arguments || tc.arguments || {},
+          }))
+        : [];
       const promptTokens = json.prompt_eval_count || 0;
       const completionTokens = json.eval_count || 0;
 
       return {
         content,
-        toolCalls: [],
+        toolCalls,
         usage: {
           promptTokens,
           completionTokens,
           totalTokens: promptTokens + completionTokens,
         },
-        finishReason: 'stop',
+        finishReason: toolCalls.length > 0 ? 'tool_calls' : 'stop',
       };
     } catch (err: any) {
       clearTimeout(timeout);

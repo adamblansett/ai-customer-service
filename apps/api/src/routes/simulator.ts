@@ -1,12 +1,11 @@
 import { Router, Request, Response } from 'express';
 import type { DatabaseInstance } from '@customer-service/db';
 import { authMiddleware, requireTenantRole } from '../middleware/auth.js';
-import { VoiceCallSimulator } from '@customer-service/core';
-import { MockAiProvider } from '@customer-service/core';
+import { VoiceCallSimulator, ResilientBuiltInAiProvider } from '@customer-service/core';
 
 export function createSimulatorRouter(db: DatabaseInstance): Router {
   const router = Router();
-  const simulator = new VoiceCallSimulator(db, new MockAiProvider());
+  const simulator = new VoiceCallSimulator(db, new ResilientBuiltInAiProvider());
 
   // POST /api/v1/tenants/:tenantId/simulator/start
   router.post(

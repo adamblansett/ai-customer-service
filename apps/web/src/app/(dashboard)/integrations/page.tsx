@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Trash2,
   Lock,
+  Cpu,
 } from 'lucide-react';
 
 interface IntegrationCredential {
@@ -18,6 +19,17 @@ interface IntegrationCredential {
   updatedAt: string;
 }
 
+interface BuiltInAiProfile {
+  id: 'qwen2.5:7b-instruct' | 'qwen2.5:3b';
+  name: string;
+  license: string;
+  parameterCount: string;
+  quantizedSizeGb: number;
+  contextWindow: number;
+  recommendedHardware: string;
+  description: string;
+}
+
 export default function IntegrationsPage() {
   const [credentials, setCredentials] = useState<IntegrationCredential[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,6 +38,8 @@ export default function IntegrationsPage() {
   const [accountSidInput, setAccountSidInput] = useState('');
   const [authTokenInput, setAuthTokenInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [builtInProfileId, setBuiltInProfileId] = useState<'qwen2.5:7b-instruct' | 'qwen2.5:3b'>('qwen2.5:7b-instruct');
+  const [activeAiMode, setActiveAiMode] = useState<'byok' | 'builtin_open_weights'>('builtin_open_weights');
 
   const tenantId = typeof window !== 'undefined'
     ? localStorage.getItem('active_tenant_id') || 'tenant_acme_hvac_001'
@@ -34,14 +48,40 @@ export default function IntegrationsPage() {
   const fetchCredentials = async () => {
     setIsLoading(true);
     try {
-      const data = await apiFetch<{ credentials: IntegrationCredential[] }>(
-        `/tenants/${tenantId}/credentials`
-      );
-      setCredentials(data.credentials || []);
+      const [credData, builtInData] = await Promise.all([
+        apiFetch<{ credentials: IntegrationCredential[] }>(`/tenants/${tenantId}/credentials`),
+        apiFetch<{
+          activeMode: 'byok' | 'builtin_open_weights';
+          selectedBuiltInProfile: BuiltInAiProfile;
+        }>(`/tenants/${tenantId}/ai/builtin`).catch(() => null),
+      ]);
+      setCredentials(credData.credentials || []);
+      if (builtInData) {
+        setActiveAiMode(builtInData.activeMode);
+        setBuiltInProfileId(builtInData.selectedBuiltInProfile.id);
+      }
     } catch {
       // Ignore
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSelectBuiltInProfile = async (profileId: 'qwen2.5:7b-instruct' | 'qwen2.5:3b') => {
+    setBuiltInProfileId(profileId);
+    try {
+      const res = await apiFetch<{ activeMode: 'byok' | 'builtin_open_weights' }>(
+        `/tenants/${tenantId}/ai/builtin/profile`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ profileId }),
+        }
+      );
+      if (res?.activeMode) {
+        setActiveAiMode(res.activeMode);
+      }
+    } catch {
+      // Local state already updated optimistically
     }
   };
 
@@ -94,10 +134,88 @@ export default function IntegrationsPage() {
   return (
     <div className="space-y-8 max-w-4xl mx-auto pb-12">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">BYOK Integrations & API Keys</h1>
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Built-In AI & BYOK Integrations</h1>
         <p className="text-sm text-slate-500">
-          Bring Your Own Keys: Connect your telephony and AI model providers securely with AES-256-GCM encryption
+          Zero-key built-in open-weights AI (Qwen 2.5 Instruct, Apache 2.0) with optional Bring-Your-Own-Key (BYOK) cloud overrides
         </p>
+      </div>
+
+      {/* Built-In Open-Weights AI Card */}
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600">
+              <Cpu className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900">
+                Built-In Open-Weights AI (Zero-Key Default)
+              </h2>
+              <p className="text-xs text-slate-500">
+                Automatically powers Voice, Chat, SMS, Email, and Multi-Agent Routing when no BYOK cloud key is set
+              </p>
+            </div>
+          </div>
+          <span
+            className={`text-xs font-semibold px-3 py-1 rounded-full ${
+              activeAiMode === 'builtin_open_weights'
+                ? 'bg-emerald-100 text-emerald-800'
+                : 'bg-sky-100 text-sky-800'
+            }`}
+          >
+            {activeAiMode === 'builtin_open_weights'
+              ? `Active Default (${builtInProfileId})`
+              : 'Standby (BYOK Override Active)'}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+          <button
+            type="button"
+            onClick={() => handleSelectBuiltInProfile('qwen2.5:7b-instruct')}
+            className={`text-left p-4 rounded-xl border transition-all ${
+              builtInProfileId === 'qwen2.5:7b-instruct'
+                ? 'border-emerald-500 bg-emerald-50/40 ring-1 ring-emerald-500'
+                : 'border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-sm text-slate-900">Qwen 2.5 7B Instruct</span>
+              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                Apache 2.0 • Default
+              </span>
+            </div>
+            <p className="text-xs text-slate-600 mt-1.5">
+              7.6B params (4.7 GB Q4_K_M) • 128k context • Class-leading native tool calling & strict RAG adherence.
+            </p>
+            <p className="text-[11px] text-slate-400 font-mono mt-2">
+              Model ID: qwen2.5:7b-instruct
+            </p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleSelectBuiltInProfile('qwen2.5:3b')}
+            className={`text-left p-4 rounded-xl border transition-all ${
+              builtInProfileId === 'qwen2.5:3b'
+                ? 'border-emerald-500 bg-emerald-50/40 ring-1 ring-emerald-500'
+                : 'border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-sm text-slate-900">Qwen 2.5 3B Instruct</span>
+              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                Lightweight CPU
+              </span>
+            </div>
+            <p className="text-xs text-slate-600 mt-1.5">
+              3.1B params (1.9 GB Q4_K_M) • 32k context • Sub-250ms CPU latency for low-memory VPS & edge containers.
+            </p>
+            <p className="text-[11px] text-slate-400 font-mono mt-2">
+              Model ID: qwen2.5:3b
+            </p>
+          </button>
+        </div>
       </div>
 
       <div className="p-4 rounded-xl bg-slate-900 text-slate-200 text-xs flex items-center gap-3">

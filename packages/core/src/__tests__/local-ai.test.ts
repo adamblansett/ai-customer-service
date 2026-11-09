@@ -2,6 +2,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   OllamaAiProvider,
   VllmAiProvider,
+  ResilientBuiltInAiProvider,
+  BUILT_IN_OPEN_WEIGHT_MODELS,
   createAiProvider,
   AiProviderError,
 } from '../ai/index.js';
@@ -11,13 +13,77 @@ describe('Local & Air-Gapped AI Model Adapters (Ollama & vLLM)', () => {
     vi.restoreAllMocks();
   });
 
-  describe('OllamaAiProvider', () => {
-    it('reports correct model capabilities', () => {
+  describe('OllamaAiProvider & Built-In Qwen 2.5 Open-Weights', () => {
+    it('defaults to qwen2.5:7b-instruct (Apache 2.0) and reports 128k context', () => {
       const provider = new OllamaAiProvider();
+      expect(provider.defaultModel).toBe('qwen2.5:7b-instruct');
       const caps = provider.getCapabilities();
       expect(caps.supportsTools).toBe(true);
       expect(caps.supportsStreaming).toBe(true);
       expect(caps.maxContextTokens).toBe(128000);
+      expect(BUILT_IN_OPEN_WEIGHT_MODELS['qwen2.5:7b-instruct'].license).toBe('Apache-2.0');
+      expect(BUILT_IN_OPEN_WEIGHT_MODELS['qwen2.5:3b'].quantizedSizeGb).toBe(1.9);
+    });
+
+    it('supports native tool calling with Qwen 2.5 via Ollama /api/chat', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          model: 'qwen2.5:7b-instruct',
+          message: {
+            role: 'assistant',
+            content: '',
+            tool_calls: [
+              {
+                function: {
+                  name: 'escalate_to_human',
+                  arguments: { reason: 'Emergency gas leak reported' },
+                },
+              },
+            ],
+          },
+          prompt_eval_count: 42,
+          eval_count: 15,
+        }),
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const provider = new OllamaAiProvider();
+      const response = await provider.generate({
+        messages: [{ role: 'user', content: 'I smell gas near my furnace!' }],
+        tools: [
+          {
+            name: 'escalate_to_human',
+            description: 'Transfer caller to human representative',
+            parameters: {
+              type: 'object',
+              properties: { reason: { type: 'string' } },
+              required: ['reason'],
+            },
+          },
+        ],
+      });
+
+      expect(response.finishReason).toBe('tool_calls');
+      expect(response.toolCalls).toHaveLength(1);
+      expect(response.toolCalls[0].name).toBe('escalate_to_human');
+      expect(response.toolCalls[0].arguments).toEqual({
+        reason: 'Emergency gas leak reported',
+      });
+    });
+
+    it('ResilientBuiltInAiProvider falls back gracefully when Ollama daemon is offline', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('ECONNREFUSED')));
+
+      const builtIn = new ResilientBuiltInAiProvider({ model: 'qwen2.5:3b' });
+      expect(builtIn.defaultModel).toBe('qwen2.5:3b');
+
+      const response = await builtIn.generate({
+        messages: [{ role: 'user', content: 'What are your operating hours?' }],
+      });
+
+      expect(response.content).toBeTruthy();
+      expect(response.finishReason).toBe('stop');
     });
 
     it('lists available models from Ollama server /api/tags', async () => {

@@ -7,13 +7,13 @@ import {
   TelnyxAdapter,
   PlivoAdapter,
   VoiceCallSimulator,
-  MockAiProvider,
+  ResilientBuiltInAiProvider,
 } from '@customer-service/core';
 
 export function createTelephonyRouter(db: DatabaseInstance): Router {
   const router = Router();
-  // Use offline deterministic provider for webhook endpoints unless BYOK is wired
-  const defaultSimulator = new VoiceCallSimulator(db, new MockAiProvider());
+  // Uses Built-In Qwen 2.5 Instruct (Apache 2.0) with automatic zero-downtime fail-safe
+  const defaultSimulator = new VoiceCallSimulator(db, new ResilientBuiltInAiProvider());
 
   // POST /api/v1/voice/inbound - Twilio Inbound Voice Webhook
   router.post('/inbound', async (req: Request, res: Response): Promise<void> => {

@@ -5,6 +5,7 @@ import { AnthropicProvider, AnthropicConfig } from './anthropic-provider.js';
 import { GeminiProvider, GeminiConfig } from './gemini-provider.js';
 import { OllamaAiProvider, OllamaConfig } from './ollama-provider.js';
 import { VllmAiProvider, VllmConfig } from './vllm-provider.js';
+import { ResilientBuiltInAiProvider, BuiltInModelProfileId } from './builtin-resolver.js';
 
 export type ProviderType =
   | 'openai'
@@ -13,7 +14,8 @@ export type ProviderType =
   | 'gemini'
   | 'mock'
   | 'ollama'
-  | 'vllm';
+  | 'vllm'
+  | 'builtin';
 
 export interface ProviderFactoryOptions {
   type: ProviderType;
@@ -71,6 +73,12 @@ export function createAiProvider(options: ProviderFactoryOptions): AiProvider {
         apiKey: options.apiKey,
         baseURL: options.baseURL,
         defaultModel: options.model,
+      });
+
+    case 'builtin':
+      return new ResilientBuiltInAiProvider({
+        baseURL: options.baseURL,
+        model: options.model as BuiltInModelProfileId | undefined,
       });
 
     default:

@@ -24,7 +24,25 @@ services:
       - "5432"
 
   # -----------------------------------------------------------------
-  # 2. Backend API & Telephony Inbound Service
+  # 2. Built-In Open-Weights AI Service (Qwen 2.5 Instruct, Apache 2.0)
+  # -----------------------------------------------------------------
+  builtin-ai:
+    image: ollama/ollama:latest
+    container_name: customer_service_builtin_ai
+    restart: unless-stopped
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+      BUILT_IN_AI_MODEL: ${BUILT_IN_AI_MODEL:-qwen2.5:7b-instruct}
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 3 && ollama pull $${BUILT_IN_AI_MODEL:-qwen2.5:7b-instruct} && wait"]
+    volumes:
+      - ollama_models:/root/.ollama
+    networks:
+      - contact-center-net
+    expose:
+      - "11434"
+
+  # -----------------------------------------------------------------
+  # 3. Backend API & Telephony Inbound Service
   # -----------------------------------------------------------------
   api:
     build:
@@ -39,6 +57,8 @@ services:
       ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY:-default-change-me-master-key-32bytes-long!}
       JWT_SECRET: ${JWT_SECRET:-default-change-me-jwt-secret-for-production!}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      BUILT_IN_AI_URL: ${BUILT_IN_AI_URL:-http://builtin-ai:11434}
+      BUILT_IN_AI_MODEL: ${BUILT_IN_AI_MODEL:-qwen2.5:7b-instruct}
     ports:
       - "3001:3001"
     healthcheck:
@@ -54,7 +74,7 @@ services:
       - contact-center-net
 
   # -----------------------------------------------------------------
-  # 3. Next.js Administration & Agent Console
+  # 4. Next.js Administration & Agent Console
   # -----------------------------------------------------------------
   web:
     build:
@@ -77,6 +97,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  ollama_models:
     driver: local
 
 networks:

@@ -3,11 +3,70 @@ import { eq, and } from 'drizzle-orm';
 import * as schema from '@customer-service/db/schema';
 import type { DatabaseInstance } from '@customer-service/db';
 import { authMiddleware, requireTenantRole } from '../middleware/auth.js';
-import { encryptCredential, maskSecret } from '@customer-service/core';
+import {
+  encryptCredential,
+  maskSecret,
+  TenantAiResolver,
+  BUILT_IN_OPEN_WEIGHT_MODELS,
+  type BuiltInModelProfileId,
+} from '@customer-service/core';
 import crypto from 'node:crypto';
 
 export function createCredentialsRouter(db: DatabaseInstance): Router {
   const router = Router();
+  const aiResolver = new TenantAiResolver(db);
+
+  // GET /api/v1/tenants/:tenantId/ai/builtin - Get Built-In Open-Weights AI status & active resolution
+  router.get(
+    '/:tenantId/ai/builtin',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
+    async (req: Request, res: Response): Promise<void> => {
+      const tenantId = req.params.tenantId;
+      const resolved = await aiResolver.resolveForTenant(tenantId);
+      const selectedProfileId = TenantAiResolver.getTenantBuiltInProfile(tenantId);
+      const selectedProfile =
+        BUILT_IN_OPEN_WEIGHT_MODELS[selectedProfileId] ||
+        BUILT_IN_OPEN_WEIGHT_MODELS['qwen2.5:7b-instruct'];
+
+      res.json({
+        activeMode: resolved.mode,
+        activeProvider: resolved.providerName,
+        activeModel: resolved.model,
+        license: resolved.license,
+        selectedBuiltInProfile: selectedProfile,
+        availableProfiles: Object.values(BUILT_IN_OPEN_WEIGHT_MODELS),
+      });
+    }
+  );
+
+  // POST /api/v1/tenants/:tenantId/ai/builtin/profile - Select Built-In Qwen 2.5 Profile (7B vs 3B CPU)
+  router.post(
+    '/:tenantId/ai/builtin/profile',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin']),
+    async (req: Request, res: Response): Promise<void> => {
+      const tenantId = req.params.tenantId;
+      const { profileId } = req.body as { profileId?: BuiltInModelProfileId };
+
+      if (!profileId || !BUILT_IN_OPEN_WEIGHT_MODELS[profileId]) {
+        res.status(400).json({
+          error: "Invalid profileId. Must be 'qwen2.5:7b-instruct' or 'qwen2.5:3b'.",
+        });
+        return;
+      }
+
+      TenantAiResolver.setTenantBuiltInProfile(tenantId, profileId);
+      const resolved = await aiResolver.resolveForTenant(tenantId);
+
+      res.json({
+        success: true,
+        selectedBuiltInProfile: BUILT_IN_OPEN_WEIGHT_MODELS[profileId],
+        activeMode: resolved.mode,
+        activeModel: resolved.model,
+      });
+    }
+  );
 
   // GET /api/v1/tenants/:tenantId/credentials - List configured integrations
   router.get(

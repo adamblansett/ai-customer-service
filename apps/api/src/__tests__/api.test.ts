@@ -585,5 +585,28 @@ describe('API Server Integration & Security Suite', () => {
       expect(sfSyncRes.body.contactSync.success).toBe(true);
       expect(sfSyncRes.body.activitySync.success).toBe(true);
     });
+
+    it('resolves built-in Qwen 2.5 open-weights AI by default and switches between 7B and 3B CPU profiles', async () => {
+      // 1. Inspect default built-in AI status (qwen2.5:7b-instruct, Apache-2.0)
+      const statusRes = await request(app)
+        .get(`/api/v1/tenants/${tenant1Id}/ai/builtin`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`);
+
+      expect(statusRes.status).toBe(200);
+      expect(statusRes.body.activeMode).toBe('builtin_open_weights');
+      expect(statusRes.body.activeModel).toBe('qwen2.5:7b-instruct');
+      expect(statusRes.body.license).toBe('Apache-2.0');
+      expect(statusRes.body.availableProfiles).toHaveLength(2);
+
+      // 2. Switch built-in profile to lightweight CPU model (qwen2.5:3b)
+      const switchRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/ai/builtin/profile`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({ profileId: 'qwen2.5:3b' });
+
+      expect(switchRes.status).toBe(200);
+      expect(switchRes.body.selectedBuiltInProfile.id).toBe('qwen2.5:3b');
+      expect(switchRes.body.activeModel).toBe('qwen2.5:3b');
+    });
   });
 });
