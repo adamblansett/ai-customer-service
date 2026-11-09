@@ -95,6 +95,18 @@ In Model A, businesses configure webhooks on their managed carrier console point
   - If `completed`: Call ends cleanly with `<Hangup/>`.
   - If `busy` or `no-answer`: Automatically triggers `EscalationEngine` fallback logic, logs a high-priority `callback_request` in PostgreSQL, and speaks an apology to the caller before cleanly hanging up.
 
+#### 4. Multi-Carrier Webhooks (Telnyx Call Control v2 & Plivo XML)
+- **Telnyx Call Control v2**: `POST /api/v1/voice/telnyx?tenantId={TENANT_ID}`
+  - Normalizes `call.initiated`, `call.answered`, `call.speak.ended`, and `call.hangup` events via `TelnyxAdapter` and returns Telnyx command instructions (`answer`, `speak`, `transfer`, `hangup`).
+- **Plivo XML**: `POST /api/v1/voice/plivo?tenantId={TENANT_ID}`
+  - Normalizes Plivo inbound/speech webhooks (`CallUUID`, `From`, `To`, `Speech`) via `PlivoAdapter` and returns `<Response><Speak>` / `<GetInput>` / `<Dial>` XML.
+
+#### 5. Bidirectional WebSocket Audio & Supervisor Coaching Streams
+- **Media Stream Gateway**: `ws://{HOST}/api/v1/voice/stream?tenantId={TENANT_ID}&callSid={CALL_SID}`
+  - Handles real-time Twilio `<Connect><Stream>` and FreeSWITCH audio frames with sub-500ms barge-in (`clear` frame dispatch on caller speech).
+- **Supervisor Coaching Bridge**: `ws://{HOST}/api/v1/voice/coaching?callSid={CALL_SID}&supervisorId={SUPERVISOR_ID}&mode={silent_monitor|whisper|barge_in}`
+  - Streams live call audio to supervisors and routes supervisor audio selectively to the agent (`whisper`) or full conference (`barge_in`).
+
 ---
 
 ## 3. Model B: Customer-Managed Telephony (Asterisk & FreeSWITCH)

@@ -83,31 +83,39 @@ stateDiagram-v2
 ## 3. Core Component Responsibilities
 
 ### 1. `packages/db` (Data Layer)
-- **Schema Management**: Typed Drizzle ORM definitions for 13 multi-tenant tables.
+- **Schema Management**: Typed Drizzle ORM definitions for 16 multi-tenant tables (including `call_flows`, `dnc_entries`, and `voiceprints`).
 - **Cascade Deletion**: All tenant-scoped entities feature `ON DELETE CASCADE` referencing `tenants.id`.
 - **Database Engine Abstraction**: Supports production PostgreSQL 16 via `node-postgres` (`pg`) and offline in-memory testing via WebAssembly `@electric-sql/pglite`.
 
 ### 2. `packages/core` (Domain Logic)
 - **Conversation State Machine**: Strictly validates state transitions (`active` -> `waiting_agent` -> `transferred` -> `closed`), preventing illegal state jumps.
-- **AI Abstraction Layer**: Standardized `AiProvider` interface with deterministic mock provider and production adapters for OpenAI, Anthropic, Google Gemini, and Groq. Handles error classification (`AiRateLimitError`, `AiAuthError`, `AiTimeoutError`, `AiContextLengthError`).
+- **3-Tier AI Resolution (`TenantAiResolver`) & Abstraction Layer**: Standardized `AiProvider` interface resolving (1) Tenant BYOK cloud credentials (`OpenAI`, `Anthropic`, `Gemini`, `Groq`) $\rightarrow$ (2) Built-In Open-Weights AI via `OllamaAiProvider` / `VllmAiProvider` across 5 selectable presets (`qwen2.5:7b-instruct`, `qwen2.5:3b`, `llama3.1:8b`, `llama3.2:3b`, `mistral-small:24b`) with native tool calling $\rightarrow$ (3) Zero-downtime deterministic RAG fallback (`ResilientBuiltInAiProvider`).
 - **Business Knowledge Base**: Semantic Markdown/text chunker with token bounds and BM25 search with source attribution.
 - **Safety Engine**: Pre-flight prompt injection scanner, isolated XML delimiter context wrapping, and hardcoded prohibited tool guards (`issue_refund`, `modify_policy`, `execute_shell_command`).
-- **Telephony & Speech Adapters**: XML-safe TwiML generation, Asterisk/FreeSWITCH SIP normalization, `SpeechPipeline` (Deepgram Nova-2 STT & ElevenLabs Flash TTS), and offline `VoiceCallSimulator`.
+- **Telephony & Speech Adapters**: XML-safe TwiML generation, Telnyx Call Control v2 (`TelnyxAdapter`), Plivo XML (`PlivoAdapter`), Asterisk/FreeSWITCH SIP normalization, `SpeechPipeline` (Deepgram Nova-2 STT & ElevenLabs Flash TTS), and offline `VoiceCallSimulator`.
 - **Escalation, Operating Hours & ACD Queues**: Timezone-aware schedule evaluator with E.164 number validation, automatic fallback callback ticketing, and `CallQueueManager` for multi-tier skills-based routing with longest-idle agent distribution.
-- **Omnichannel SMS Messaging**: `SmsAdapter` and `SmsConversationHandler` processing multi-turn SMS dialog with prompt defense and knowledge retrieval.
+- **Omnichannel Messaging**: `SmsAdapter`, `EmailAdapter`, and `WhatsAppAdapter` processing multi-turn dialog across SMS, Email, and WhatsApp Business Cloud API with prompt defense and knowledge retrieval.
 - **Post-Call Analytics & CSAT**: `ConversationAnalyzer` extracting multi-turn sentiment, CSAT scores (1–5), resolution flags, compliance verification (AI disclosure & recording notice), and AI summaries.
 - **Usage Metering & Billing Engine**: `UsageMeter` tracking voice minutes and AI token consumption across tiers (`Starter`, `Pro`, `Enterprise`) with overage calculations.
 
-### 3. `apps/api` (REST & Webhook Server)
-- Express.js application exposing port `3001`.
-- Webhooks: `/api/v1/voice/inbound`, `/api/v1/voice/events`, `/api/v1/voice/transfer-status`, `/api/v1/sms/inbound`.
-- Chat API: `/api/v1/chat/public/session`, `/api/v1/chat/public/message`.
-- Admin API: `/api/v1/admin/conversations`, `/api/v1/admin/knowledge`, `/api/v1/admin/integrations`.
-- Privacy & Retention: `/api/v1/privacy/purge-retention`, `/api/v1/privacy/export-data`.
+### 3. `apps/api` (REST, Webhook & WebSocket Server)
+- Express.js + `ws` application exposing port `3001`.
+- **Telephony & Messaging Webhooks**: `/api/v1/voice/inbound`, `/api/v1/voice/events`, `/api/v1/voice/transfer-status`, `/api/v1/voice/telnyx`, `/api/v1/voice/plivo`, `/api/v1/sms/inbound`, `/api/v1/messaging/:tenantId/email/inbound`, `/api/v1/messaging/:tenantId/whatsapp/webhook`.
+- **WebSocket Multiplexer**: `ws://.../api/v1/voice/stream` (Twilio/FreeSWITCH bidirectional audio & barge-in) and `ws://.../api/v1/voice/coaching` (live WebRTC supervisor monitor/whisper/barge-in).
+- **Chat API**: `/api/v1/chat/public/session`, `/api/v1/chat/public/message`.
+- **Tenant & Enterprise API**:
+  - Built-In AI & BYOK Vault: `/api/v1/tenants/:tenantId/ai/builtin`, `/api/v1/tenants/:tenantId/ai/builtin/profile`, `/api/v1/tenants/:tenantId/credentials`
+  - Visual Call Flows: `/api/v1/tenants/:tenantId/flows` (PostgreSQL-backed CRUD & simulation)
+  - Customer 360 & Journeys: `/api/v1/tenants/:tenantId/customers`
+  - Supervisor Coaching & Multi-Agent Orchestration: `/api/v1/tenants/:tenantId/calls/:callSid/coaching`, `/api/v1/tenants/:tenantId/conversations/:id/orchestrate`
+  - Voice Biometrics, Call Risk & CRM Sync: `/api/v1/tenants/:tenantId/enterprise/biometrics/enroll`, `/biometrics/verify`, `/risk-score`, `/crm/sync`
+  - Outbound Campaigns & DNC: `/api/v1/tenants/:tenantId/campaigns` (PostgreSQL-backed `dnc_entries`)
+  - Identity (SSO & SCIM 2.0): `/api/v1/scim/v2/:tenantId/Users`
+- **Privacy & Retention**: `/api/v1/privacy/purge-retention`, `/api/v1/privacy/export-data`.
 
 ### 4. `apps/web` (Operator & Agent Console)
-- Next.js 14 App Router application with Tailwind CSS and Lucide icons.
-- Pages: `/overview`, `/conversations`, `/knowledge`, `/calls`, `/simulator`, `/settings`, `/integrations`, `/login`, `/chat-widget`.
+- Next.js 14 App Router application with Tailwind CSS and Lucide icons (18 routes).
+- Pages: `/overview`, `/conversations`, `/calls`, `/queues`, `/flows`, `/customers`, `/knowledge`, `/analytics`, `/billing`, `/simulator`, `/integrations`, `/settings`, `/login`, `/chat-widget`.
 
 ---
 

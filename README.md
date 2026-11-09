@@ -211,7 +211,7 @@ The test suite runs against embedded WebAssembly PostgreSQL (`PGlite`) with zero
 ```bash
 npm test
 ```
-All 127 unit, integration, and security tests will execute and pass across 22 test suites.
+All 169 unit, integration, and security tests will execute and pass across 29 test suites.
 
 ### 4. Build Monorepo
 ```bash
@@ -245,8 +245,9 @@ docker compose up -d --build
 
 The stack provisions:
 1. `postgres`: PostgreSQL 16 Alpine container with persistent named volume `postgres_data` (isolated on internal network).
-2. `api`: Multi-stage unprivileged (`node`) container exposing port `3001`.
-3. `web`: Standalone Next.js unprivileged (`nextjs`) container exposing port `3000`.
+2. `builtin-ai`: Bundled Ollama open-weights inference container with persistent named volume `ollama_models` (auto-pulls `qwen2.5:7b-instruct` by default; supports all 5 open-weights presets).
+3. `api`: Multi-stage unprivileged (`node`) container exposing port `3001` (HTTP REST + WebSocket media & coaching bridges).
+4. `web`: Standalone Next.js unprivileged (`nextjs`) container exposing port `3000`.
 
 ---
 

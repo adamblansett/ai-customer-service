@@ -20,12 +20,13 @@ The stack is orchestrated using Docker Compose (`docker-compose.yml`) with stric
                          │                         │
                          └───────────┬─────────────┘
                                      │ (contact-center-net bridge)
-                                     ▼
-                            ┌─────────────────┐
-                            │    postgres     │
-                            │   (Postgres 16) │
-                            │ (Internal only) │
-                            └─────────────────┘
+                        ┌────────────┴────────────┐
+                        ▼                         ▼
+               ┌─────────────────┐       ┌─────────────────┐
+               │    postgres     │       │   builtin-ai    │
+               │   (Postgres 16) │       │ (Ollama Open-   │
+               │ (Internal only) │       │  Weights 11434) │
+               └─────────────────┘       └─────────────────┘
 ```
 
 ### Services
@@ -33,6 +34,7 @@ The stack is orchestrated using Docker Compose (`docker-compose.yml`) with stric
 | Service | Image / Build | Port Binding | Healthcheck Probe | Security Context |
 | :--- | :--- | :--- | :--- | :--- |
 | `postgres` | `postgres:16-alpine` | `5432` (Internal only) | `pg_isready -U postgres` | Sandboxed to internal network |
+| `builtin-ai` | `ollama/ollama:latest` | `11434` (Internal only) | `ollama list` | Auto-pulls `BUILT_IN_AI_MODEL` (`qwen2.5:7b-instruct`) |
 | `api` | `apps/api/Dockerfile` | `3001:3001` | `curl -f http://localhost:3001/health` | Non-root `node` (UID 1000) |
 | `web` | `apps/web/Dockerfile` | `3000:3000` | `curl -f http://localhost:3000` | Non-root `nextjs` (UID 1001) |
 
