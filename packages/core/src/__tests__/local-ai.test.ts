@@ -23,6 +23,10 @@ describe('Local & Air-Gapped AI Model Adapters (Ollama & vLLM)', () => {
       expect(caps.maxContextTokens).toBe(128000);
       expect(BUILT_IN_OPEN_WEIGHT_MODELS['qwen2.5:7b-instruct'].license).toBe('Apache-2.0');
       expect(BUILT_IN_OPEN_WEIGHT_MODELS['qwen2.5:3b'].quantizedSizeGb).toBe(1.9);
+      expect(BUILT_IN_OPEN_WEIGHT_MODELS['llama3.1:8b'].quantizedSizeGb).toBe(4.7);
+      expect(BUILT_IN_OPEN_WEIGHT_MODELS['llama3.2:3b'].quantizedSizeGb).toBe(2.0);
+      expect(BUILT_IN_OPEN_WEIGHT_MODELS['mistral-small:24b'].license).toBe('Apache-2.0');
+      expect(Object.keys(BUILT_IN_OPEN_WEIGHT_MODELS)).toHaveLength(5);
     });
 
     it('supports native tool calling with Qwen 2.5 via Ollama /api/chat', async () => {

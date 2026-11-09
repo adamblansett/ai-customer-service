@@ -586,7 +586,7 @@ describe('API Server Integration & Security Suite', () => {
       expect(sfSyncRes.body.activitySync.success).toBe(true);
     });
 
-    it('resolves built-in Qwen 2.5 open-weights AI by default and switches between 7B and 3B CPU profiles', async () => {
+    it('resolves built-in Qwen 2.5 open-weights AI by default and switches across all 5 open-weights profiles (Qwen, Llama, Mistral)', async () => {
       // 1. Inspect default built-in AI status (qwen2.5:7b-instruct, Apache-2.0)
       const statusRes = await request(app)
         .get(`/api/v1/tenants/${tenant1Id}/ai/builtin`)
@@ -596,7 +596,7 @@ describe('API Server Integration & Security Suite', () => {
       expect(statusRes.body.activeMode).toBe('builtin_open_weights');
       expect(statusRes.body.activeModel).toBe('qwen2.5:7b-instruct');
       expect(statusRes.body.license).toBe('Apache-2.0');
-      expect(statusRes.body.availableProfiles).toHaveLength(2);
+      expect(statusRes.body.availableProfiles).toHaveLength(5);
 
       // 2. Switch built-in profile to lightweight CPU model (qwen2.5:3b)
       const switchRes = await request(app)
@@ -607,6 +607,26 @@ describe('API Server Integration & Security Suite', () => {
       expect(switchRes.status).toBe(200);
       expect(switchRes.body.selectedBuiltInProfile.id).toBe('qwen2.5:3b');
       expect(switchRes.body.activeModel).toBe('qwen2.5:3b');
+
+      // 3. Switch to Meta Llama 3.1 8B (Voice Cadence profile)
+      const llamaRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/ai/builtin/profile`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({ profileId: 'llama3.1:8b' });
+
+      expect(llamaRes.status).toBe(200);
+      expect(llamaRes.body.selectedBuiltInProfile.id).toBe('llama3.1:8b');
+      expect(llamaRes.body.activeModel).toBe('llama3.1:8b');
+
+      // 4. Switch to Mistral Small 24B (Max Quality GPU profile)
+      const mistralRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/ai/builtin/profile`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({ profileId: 'mistral-small:24b' });
+
+      expect(mistralRes.status).toBe(200);
+      expect(mistralRes.body.selectedBuiltInProfile.id).toBe('mistral-small:24b');
+      expect(mistralRes.body.activeModel).toBe('mistral-small:24b');
     });
   });
 });

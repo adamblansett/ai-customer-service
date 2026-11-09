@@ -19,8 +19,16 @@ interface IntegrationCredential {
   updatedAt: string;
 }
 
+type BuiltInPresetId =
+  | 'qwen2.5:7b-instruct'
+  | 'qwen2.5:3b'
+  | 'llama3.1:8b'
+  | 'llama3.2:3b'
+  | 'mistral-small:24b';
+
 interface BuiltInAiProfile {
-  id: 'qwen2.5:7b-instruct' | 'qwen2.5:3b';
+  id: BuiltInPresetId;
+  family?: string;
   name: string;
   license: string;
   parameterCount: string;
@@ -30,6 +38,56 @@ interface BuiltInAiProfile {
   description: string;
 }
 
+const BUILT_IN_PRESETS: Array<{
+  id: BuiltInPresetId;
+  title: string;
+  badge: string;
+  badgeColor: string;
+  specs: string;
+  description: string;
+}> = [
+  {
+    id: 'qwen2.5:7b-instruct',
+    title: 'Qwen 2.5 7B Instruct',
+    badge: 'Apache 2.0 • Default',
+    badgeColor: 'bg-emerald-100 text-emerald-800',
+    specs: '7.6B params (4.7 GB Q4_K_M) • 128k context',
+    description: 'Class-leading native tool calling & strict XML RAG adherence for customer service.',
+  },
+  {
+    id: 'qwen2.5:3b',
+    title: 'Qwen 2.5 3B Instruct',
+    badge: 'Lightweight CPU',
+    badgeColor: 'bg-slate-100 text-slate-700',
+    specs: '3.1B params (1.9 GB Q4_K_M) • 32k context',
+    description: 'Sub-250ms CPU latency for low-memory VPS & edge containers.',
+  },
+  {
+    id: 'llama3.1:8b',
+    title: 'Llama 3.1 8B Instruct',
+    badge: 'Meta • Voice Cadence',
+    badgeColor: 'bg-blue-100 text-blue-800',
+    specs: '8.0B params (4.7 GB Q4_K_M) • 128k context',
+    description: 'Optimized for natural conversational English voice synthesis & multi-turn phone dialogue.',
+  },
+  {
+    id: 'llama3.2:3b',
+    title: 'Llama 3.2 3B Instruct',
+    badge: 'Meta • Fast Voice CPU',
+    badgeColor: 'bg-indigo-100 text-indigo-800',
+    specs: '3.2B params (2.0 GB Q4_K_M) • 128k context',
+    description: 'Compact 128k-context Meta model delivering natural English phrasing on CPU hosts.',
+  },
+  {
+    id: 'mistral-small:24b',
+    title: 'Mistral Small 24B Instruct',
+    badge: 'Apache 2.0 • Max GPU Quality',
+    badgeColor: 'bg-amber-100 text-amber-800',
+    specs: '24B params (14.0 GB Q4_K_M) • 32k context',
+    description: 'High-reasoning enterprise GPU model rivaling GPT-4o-mini for complex multi-department triage.',
+  },
+];
+
 export default function IntegrationsPage() {
   const [credentials, setCredentials] = useState<IntegrationCredential[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,7 +96,7 @@ export default function IntegrationsPage() {
   const [accountSidInput, setAccountSidInput] = useState('');
   const [authTokenInput, setAuthTokenInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [builtInProfileId, setBuiltInProfileId] = useState<'qwen2.5:7b-instruct' | 'qwen2.5:3b'>('qwen2.5:7b-instruct');
+  const [builtInProfileId, setBuiltInProfileId] = useState<BuiltInPresetId>('qwen2.5:7b-instruct');
   const [activeAiMode, setActiveAiMode] = useState<'byok' | 'builtin_open_weights'>('builtin_open_weights');
 
   const tenantId = typeof window !== 'undefined'
@@ -67,7 +125,7 @@ export default function IntegrationsPage() {
     }
   };
 
-  const handleSelectBuiltInProfile = async (profileId: 'qwen2.5:7b-instruct' | 'qwen2.5:3b') => {
+  const handleSelectBuiltInProfile = async (profileId: BuiltInPresetId) => {
     setBuiltInProfileId(profileId);
     try {
       const res = await apiFetch<{ activeMode: 'byok' | 'builtin_open_weights' }>(
@@ -169,52 +227,31 @@ export default function IntegrationsPage() {
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-          <button
-            type="button"
-            onClick={() => handleSelectBuiltInProfile('qwen2.5:7b-instruct')}
-            className={`text-left p-4 rounded-xl border transition-all ${
-              builtInProfileId === 'qwen2.5:7b-instruct'
-                ? 'border-emerald-500 bg-emerald-50/40 ring-1 ring-emerald-500'
-                : 'border-slate-200 hover:border-slate-300'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-sm text-slate-900">Qwen 2.5 7B Instruct</span>
-              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                Apache 2.0 • Default
-              </span>
-            </div>
-            <p className="text-xs text-slate-600 mt-1.5">
-              7.6B params (4.7 GB Q4_K_M) • 128k context • Class-leading native tool calling & strict RAG adherence.
-            </p>
-            <p className="text-[11px] text-slate-400 font-mono mt-2">
-              Model ID: qwen2.5:7b-instruct
-            </p>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleSelectBuiltInProfile('qwen2.5:3b')}
-            className={`text-left p-4 rounded-xl border transition-all ${
-              builtInProfileId === 'qwen2.5:3b'
-                ? 'border-emerald-500 bg-emerald-50/40 ring-1 ring-emerald-500'
-                : 'border-slate-200 hover:border-slate-300'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-sm text-slate-900">Qwen 2.5 3B Instruct</span>
-              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-700">
-                Lightweight CPU
-              </span>
-            </div>
-            <p className="text-xs text-slate-600 mt-1.5">
-              3.1B params (1.9 GB Q4_K_M) • 32k context • Sub-250ms CPU latency for low-memory VPS & edge containers.
-            </p>
-            <p className="text-[11px] text-slate-400 font-mono mt-2">
-              Model ID: qwen2.5:3b
-            </p>
-          </button>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
+          {BUILT_IN_PRESETS.map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => handleSelectBuiltInProfile(preset.id)}
+              className={`text-left p-4 rounded-xl border transition-all ${
+                builtInProfileId === preset.id
+                  ? 'border-emerald-500 bg-emerald-50/40 ring-1 ring-emerald-500'
+                  : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-1">
+                <span className="font-bold text-sm text-slate-900">{preset.title}</span>
+                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded whitespace-nowrap ${preset.badgeColor}`}>
+                  {preset.badge}
+                </span>
+              </div>
+              <p className="text-[11px] font-medium text-slate-500 mt-1">{preset.specs}</p>
+              <p className="text-xs text-slate-600 mt-1.5">{preset.description}</p>
+              <p className="text-[11px] text-slate-400 font-mono mt-2">
+                Model ID: {preset.id}
+              </p>
+            </button>
+          ))}
         </div>
       </div>
 

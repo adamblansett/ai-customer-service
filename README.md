@@ -61,9 +61,14 @@ An open-source, self-hosted, Docker-first AI customer-service and contact-center
     - **Inbound Email**: `EmailAdapter` and `EmailConversationHandler` parsing SendGrid, Postmark, and Mailgun webhooks with automatic message threading (`In-Reply-To`), knowledge-grounded AI responses, and prompt injection defense.
     - **WhatsApp Business Cloud API**: Meta Graph API webhook subscription handshake and real-time message handler producing compliant WhatsApp messaging payloads.
 
-11. **Built-In Open-Weights AI (Qwen 2.5 Instruct, Apache 2.0) & Air-Gapped Inference**:
-    - **Zero-Key Default Built-In AI**: Bundled with **Qwen 2.5 7B Instruct** (`qwen2.5:7b-instruct`, Apache 2.0, 4.7 GB Q4_K_M, 128k context, native tool calling) and a one-click **Qwen 2.5 3B Instruct** (`qwen2.5:3b`, 1.9 GB lightweight CPU profile).
-    - **3-Tier AI Resolution (`TenantAiResolver`)**: Automatically uses (1) Tenant BYOK cloud credentials if configured $\rightarrow$ (2) Built-In Open-Weights Qwen 2.5 container (`builtin-ai` in `docker-compose.yml`) $\rightarrow$ (3) Zero-downtime deterministic RAG fail-safe (`ResilientBuiltInAiProvider`).
+11. **Built-In Open-Weights AI (5 Presets: Qwen 2.5, Llama 3.1/3.2, Mistral Small 24B) & Air-Gapped Inference**:
+    - **Zero-Key Default Built-In AI**: Bundled with 5 selectable open-weights presets in the Web Console (`/integrations`):
+      - **Qwen 2.5 7B Instruct** (`qwen2.5:7b-instruct`, Apache 2.0, 4.7 GB Q4_K_M, 128k context, default balanced tool-calling + RAG model)
+      - **Qwen 2.5 3B Instruct** (`qwen2.5:3b`, 1.9 GB lightweight CPU profile for low-latency voice turn-taking)
+      - **Meta Llama 3.1 8B Instruct** (`llama3.1:8b`, 4.7 GB natural English conversational voice cadence)
+      - **Meta Llama 3.2 3B Instruct** (`llama3.2:3b`, 2.0 GB fast conversational CPU voice model)
+      - **Mistral Small 24B Instruct** (`mistral-small:24b`, Apache 2.0, 14.0 GB GPU high-reasoning multi-department model)
+    - **3-Tier AI Resolution (`TenantAiResolver`)**: Automatically uses (1) Tenant BYOK cloud credentials if configured $\rightarrow$ (2) Built-In Open-Weights AI container (`builtin-ai` in `docker-compose.yml`) $\rightarrow$ (3) Zero-downtime deterministic RAG fail-safe (`ResilientBuiltInAiProvider`).
     - First-class providers for **Ollama** (`OllamaAiProvider` with native function/tool calling) and **vLLM** (`VllmAiProvider`, 131k context window).
 
 12. **Bidirectional WebSocket Media Streaming & Sub-500ms Barge-In**:

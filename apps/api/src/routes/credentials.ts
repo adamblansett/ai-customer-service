@@ -40,7 +40,7 @@ export function createCredentialsRouter(db: DatabaseInstance): Router {
     }
   );
 
-  // POST /api/v1/tenants/:tenantId/ai/builtin/profile - Select Built-In Qwen 2.5 Profile (7B vs 3B CPU)
+  // POST /api/v1/tenants/:tenantId/ai/builtin/profile - Select Built-In Open-Weights Preset (Qwen, Llama, Mistral)
   router.post(
     '/:tenantId/ai/builtin/profile',
     authMiddleware,
@@ -51,7 +51,8 @@ export function createCredentialsRouter(db: DatabaseInstance): Router {
 
       if (!profileId || !BUILT_IN_OPEN_WEIGHT_MODELS[profileId]) {
         res.status(400).json({
-          error: "Invalid profileId. Must be 'qwen2.5:7b-instruct' or 'qwen2.5:3b'.",
+          error:
+            "Invalid profileId. Must be one of: 'qwen2.5:7b-instruct', 'qwen2.5:3b', 'llama3.1:8b', 'llama3.2:3b', or 'mistral-small:24b'.",
         });
         return;
       }
