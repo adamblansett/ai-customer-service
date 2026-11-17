@@ -276,6 +276,23 @@ We do not offer phone quotes for complex compressor or refrigerant replacements 
     },
   ]).onConflictDoNothing();
 
+  // 9. Sample Scheduled Appointment for Acme HVAC
+  await db.insert(schema.appointments).values([
+    {
+      id: 'appt_acme_seed_001',
+      tenantId: tenant1Id,
+      customerId: 'cust_john_doe_001',
+      customerName: 'John Doe',
+      customerPhone: '+15550101',
+      serviceType: 'furnace_repair',
+      technicianName: 'Marcus Vance',
+      scheduledStart: new Date('2026-11-20T08:00:00.000Z'),
+      scheduledEnd: new Date('2026-11-20T10:00:00.000Z'),
+      status: 'confirmed',
+      notes: 'Annual furnace safety inspection and igniter check',
+    },
+  ]).onConflictDoNothing();
+
   return { tenant1Id, tenant2Id, adminUserId, agentUserId };
 }
 

@@ -184,6 +184,7 @@ export const knowledgeChunks = pgTable('knowledge_chunks', {
   content: text('content').notNull(),
   tokenCount: integer('token_count').notNull().default(0),
   keywords: text('keywords').notNull(), // normalized search tokens for BM25/keyword retrieval
+  embeddingJson: text('embedding_json'), // serialized float32 vector embedding for Hybrid Vector + BM25 RRF search
   metadata: jsonb('metadata').default({}),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
@@ -302,4 +303,27 @@ export const voiceprints = pgTable('voiceprints', {
 }, (table) => [
   index('voiceprints_tenant_idx').on(table.tenantId),
   uniqueIndex('voiceprints_tenant_customer_idx').on(table.tenantId, table.customerId),
+]);
+
+// -------------------------------------------------------------
+// 17. Appointments & Field-Service Dispatch Table
+// -------------------------------------------------------------
+export const appointments = pgTable('appointments', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  customerId: text('customer_id').references(() => customers.id, { onDelete: 'set null' }),
+  conversationId: text('conversation_id').references(() => conversations.id, { onDelete: 'set null' }),
+  customerName: text('customer_name').notNull(),
+  customerPhone: text('customer_phone').notNull(),
+  serviceType: text('service_type').notNull(), // 'furnace_repair', 'ac_tuneup', 'emergency_dispatch', 'general_diagnostic'
+  technicianName: text('technician_name').notNull(),
+  scheduledStart: timestamp('scheduled_start', { withTimezone: true }).notNull(),
+  scheduledEnd: timestamp('scheduled_end', { withTimezone: true }).notNull(),
+  status: text('status').notNull().default('confirmed'), // 'confirmed', 'rescheduled', 'cancelled', 'completed'
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('appointments_tenant_idx').on(table.tenantId),
+  index('appointments_schedule_idx').on(table.tenantId, table.scheduledStart),
 ]);

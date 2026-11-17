@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import {
   BarChart3,
   Smile,
@@ -85,8 +86,25 @@ const RECENT_INSIGHTS: CallInsightItem[] = [
 ];
 
 export default function AnalyticsPage() {
-  const [insights] = useState<CallInsightItem[]>(RECENT_INSIGHTS);
+  const [insights, setInsights] = useState<CallInsightItem[]>(RECENT_INSIGHTS);
   const [selectedSentimentFilter, setSelectedSentimentFilter] = useState<string>('all');
+
+  const tenantId =
+    typeof window !== 'undefined'
+      ? localStorage.getItem('active_tenant_id') || 'tenant_acme_hvac_001'
+      : 'tenant_acme_hvac_001';
+
+  useEffect(() => {
+    apiFetch<{ insights: CallInsightItem[] }>(`/tenants/${tenantId}/analytics`)
+      .then((data) => {
+        if (data?.insights && data.insights.length > 0) {
+          setInsights(data.insights);
+        }
+      })
+      .catch(() => {
+        // Keep RECENT_INSIGHTS fallback
+      });
+  }, [tenantId]);
 
   const filteredInsights = insights.filter((item) => {
     if (selectedSentimentFilter === 'all') return true;

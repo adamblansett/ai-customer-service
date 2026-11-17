@@ -25,6 +25,7 @@ import { createScimRouter } from './routes/scim.js';
 import { createFlowsRouter } from './routes/flows.js';
 import { createCustomersRouter } from './routes/customers.js';
 import { createEnterpriseRouter } from './routes/enterprise.js';
+import { createOperationsRouter } from './routes/operations.js';
 
 export function createApp(db: DatabaseInstance): Express {
   const app = express();
@@ -73,6 +74,7 @@ export function createApp(db: DatabaseInstance): Express {
   app.use('/api/v1/tenants', createFlowsRouter(db));
   app.use('/api/v1/tenants', createCustomersRouter(db));
   app.use('/api/v1/tenants', createEnterpriseRouter(db));
+  app.use('/api/v1/tenants', createOperationsRouter(db));
   app.use('/api/v1/voice', createTelephonyRouter(db));
   app.use('/api/v1/chat', createChatRouter(db));
   app.use('/api/v1/sms', createSmsRouter(db));

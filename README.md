@@ -148,6 +148,19 @@ An open-source, self-hosted, Docker-first AI customer-service and contact-center
     - Telephony adapters for **Telnyx Call Control v2** and **Plivo XML** for multi-carrier redundancy.
     - Two-way CRM synchronization connectors for **Salesforce** (Contacts and Task call logs) and **HubSpot** (Contacts and Engagement Calls).
 
+29. **Built-In Open-Weights Voice Pipeline (Faster-Whisper STT + Kokoro-82M / Piper TTS)**:
+    - Zero-key speech recognition with **Whisper Large v3 Turbo** (MIT, 809M), **Distil-Whisper Large v3** (CPU), and **Whisper Base.en**.
+    - Zero-key neural speech synthesis with **Kokoro-82M** (Apache 2.0, 82M parameters, faster than real-time on CPU) and **Piper ONNX TTS** (MIT) managed via `TenantSpeechResolver` and `/integrations`.
+
+30. **Hybrid Vector + BM25 Semantic RAG (`OllamaEmbeddingProvider` & `DeterministicSemanticEmbeddingProvider`)**:
+    - Combines lexical keyword search with semantic vector cosine similarity (`nomic-embed-text` / `bge-m3` + technical synonym cluster bridging) stored in `knowledge_chunks.embedding_json`.
+
+31. **Native Appointment Scheduling & Calendar Dispatch Engine (`AppointmentScheduler`)**:
+    - Conflict-free 2-hour technician window calculation (`checkAvailableSlots`), confirmed booking (`bookAppointment`), rescheduling, cancellation, and AI tool definitions (`APPOINTMENT_AI_TOOLS`) backed by the PostgreSQL `appointments` table.
+
+32. **Multilingual Auto-Detection & Cross-Lingual RAG (`LanguageRouter`)**:
+    - Automatic detection of English (`en-US`), Spanish (`es-US`), French (`fr-FR`), German (`de-DE`), Portuguese (`pt-BR`), and Mandarin (`zh-CN`), dynamically selecting localized TwiML Polly / Kokoro-82M voices and expanding cross-lingual RAG queries.
+
 ---
 
 ## Monorepo Architecture
@@ -211,7 +224,7 @@ The test suite runs against embedded WebAssembly PostgreSQL (`PGlite`) with zero
 ```bash
 npm test
 ```
-All 169 unit, integration, and security tests will execute and pass across 29 test suites.
+All 175 unit, integration, and security tests will execute and pass across 30 test suites.
 
 ### 4. Build Monorepo
 ```bash

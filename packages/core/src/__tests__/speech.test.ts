@@ -5,6 +5,12 @@ import {
   MediaStreamSession,
   DeepgramSttProvider,
   ElevenLabsTtsProvider,
+  FasterWhisperSttProvider,
+  KokoroTtsProvider,
+  ResilientBuiltInSpeechProvider,
+  TenantSpeechResolver,
+  BUILT_IN_STT_MODELS,
+  BUILT_IN_TTS_MODELS,
   WebSocketLike,
 } from '../telephony/index.js';
 
@@ -88,5 +94,31 @@ describe('Streaming Speech-to-Text & Text-to-Speech Engine', () => {
 
     const elevenLabs = new ElevenLabsTtsProvider({ apiKey: '' });
     await expect(elevenLabs.synthesizeSpeech('sample')).rejects.toThrow(/API key is missing/);
+  });
+
+  it('supports Built-In Open-Weights Faster-Whisper STT & Kokoro-82M TTS with resilient fallback', async () => {
+    expect(BUILT_IN_STT_MODELS['whisper-large-v3-turbo'].license).toBe('MIT');
+    expect(BUILT_IN_TTS_MODELS['kokoro-82m'].license).toBe('Apache-2.0');
+
+    const profiles = TenantSpeechResolver.setTenantSpeechProfiles('tenant_acme_hvac_001', {
+      sttProfile: 'distil-whisper-large-v3',
+      ttsProfile: 'kokoro-82m',
+      defaultVoice: 'ef_dora',
+    });
+    expect(profiles.sttProfile).toBe('distil-whisper-large-v3');
+    expect(profiles.defaultVoice).toBe('ef_dora');
+
+    const resilient = new ResilientBuiltInSpeechProvider({
+      sttModel: 'whisper-large-v3-turbo',
+      ttsModel: 'kokoro-82m',
+    });
+
+    const sttRes = await resilient.transcribeAudio('bXVMYXdBdWRpbw==');
+    expect(sttRes.text).toBeTruthy();
+    expect(sttRes.isFinal).toBe(true);
+
+    const ttsRes = await resilient.synthesizeSpeech('Hello from Kokoro open-weights neural TTS');
+    expect(ttsRes.audioBase64).toBeTruthy();
+    expect(ttsRes.format).toBe('audio/x-mulaw');
   });
 });

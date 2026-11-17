@@ -2,14 +2,26 @@ import { eq, and } from 'drizzle-orm';
 import * as schema from '@customer-service/db/schema';
 import type { DatabaseInstance } from '@customer-service/db';
 import { chunkDocument, extractKeywords } from './chunker.js';
+import {
+  EmbeddingProvider,
+  OllamaEmbeddingProvider,
+  DeterministicSemanticEmbeddingProvider,
+  cosineSimilarity,
+  hasTechnicalSynonymOverlap,
+} from './embeddings.js';
 import { KnowledgeSearchResult, SearchOptions } from './types.js';
 import crypto from 'node:crypto';
 
 export class KnowledgeRetriever {
-  constructor(private db: DatabaseInstance) {}
+  private embeddingProvider: EmbeddingProvider;
+  private localSemanticFallback = new DeterministicSemanticEmbeddingProvider();
+
+  constructor(private db: DatabaseInstance, embeddingProvider?: EmbeddingProvider) {
+    this.embeddingProvider = embeddingProvider || new OllamaEmbeddingProvider();
+  }
 
   /**
-   * Ingests, chunks, and indexes a text or Markdown document for a specific tenant.
+   * Ingests, chunks, embeds, and indexes a text or Markdown document for a specific tenant.
    */
   async ingestDocument(params: {
     tenantId: string;
@@ -36,17 +48,23 @@ export class KnowledgeRetriever {
       })
       .returning();
 
-    // 2. Insert chunk records
+    // 2. Insert chunk records with semantic embeddings
     if (chunks.length > 0) {
-      const chunkRows = chunks.map(c => ({
-        id: `chunk_${crypto.randomUUID()}`,
-        tenantId: params.tenantId,
-        documentId: doc.id,
-        chunkIndex: c.chunkIndex,
-        content: c.content,
-        keywords: c.keywords,
-        tokenCount: c.tokenCount,
-      }));
+      const chunkRows = await Promise.all(
+        chunks.map(async (c) => {
+          const vector = await this.embeddingProvider.embedText(`${params.title}\n${c.content}`);
+          return {
+            id: `chunk_${crypto.randomUUID()}`,
+            tenantId: params.tenantId,
+            documentId: doc.id,
+            chunkIndex: c.chunkIndex,
+            content: c.content,
+            keywords: c.keywords,
+            embeddingJson: JSON.stringify(vector),
+            tokenCount: c.tokenCount,
+          };
+        })
+      );
 
       await this.db.insert(schema.knowledgeChunks).values(chunkRows);
     }
@@ -88,6 +106,9 @@ export class KnowledgeRetriever {
       return [];
     }
 
+    const queryVector = await this.embeddingProvider.embedText(query);
+    const localQueryVector = this.localSemanticFallback.computeSync(query);
+
     // Fetch tenant's chunks joined with document titles
     const results = await this.db
       .select({
@@ -97,6 +118,7 @@ export class KnowledgeRetriever {
         sourceUri: schema.knowledgeDocuments.sourceUri,
         content: schema.knowledgeChunks.content,
         keywords: schema.knowledgeChunks.keywords,
+        embeddingJson: schema.knowledgeChunks.embeddingJson,
       })
       .from(schema.knowledgeChunks)
       .innerJoin(
@@ -141,8 +163,35 @@ export class KnowledgeRetriever {
         }
       }
 
-      const rawScore = (matchCount / queryKeywords.length) * 0.7 + phraseBoost + titleBoost;
-      const normalizedScore = Math.min(1.0, Math.round(rawScore * 100) / 100);
+      const lexicalScore = (matchCount / queryKeywords.length) * 0.7 + phraseBoost + titleBoost;
+
+      // Semantic Vector Similarity Score (Hybrid RAG)
+      let semanticScore = 0;
+      if (row.embeddingJson) {
+        try {
+          const parsedVec = JSON.parse(row.embeddingJson);
+          if (Array.isArray(parsedVec)) {
+            semanticScore = cosineSimilarity(
+              parsedVec.length === queryVector.length ? queryVector : localQueryVector,
+              parsedVec
+            );
+          }
+        } catch {
+          semanticScore = 0;
+        }
+      } else {
+        const computedChunkVec = this.localSemanticFallback.computeSync(
+          `${row.documentTitle}\n${row.content}`
+        );
+        semanticScore = cosineSimilarity(localQueryVector, computedChunkVec);
+      }
+
+      // Hybrid Fusion: combine lexical score with semantic vector similarity when technical domain synonyms overlap
+      const hasSynonymBridge = hasTechnicalSynonymOverlap(query, `${row.documentTitle} ${row.content}`);
+      const hybridRawScore = hasSynonymBridge
+        ? Math.max(lexicalScore, lexicalScore + semanticScore * 0.45)
+        : lexicalScore;
+      const normalizedScore = Math.min(1.0, Math.round(hybridRawScore * 100) / 100);
 
       if (normalizedScore >= minThreshold) {
         let confidence: KnowledgeSearchResult['confidence'] = 'low';

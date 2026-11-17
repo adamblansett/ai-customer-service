@@ -182,6 +182,7 @@ export async function initializeSchemaInPglite(pglite: PGlite): Promise<void> {
       content TEXT NOT NULL,
       token_count INTEGER NOT NULL DEFAULT 0,
       keywords TEXT NOT NULL,
+      embedding_json TEXT,
       metadata JSONB DEFAULT '{}'::jsonb,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
@@ -262,6 +263,23 @@ export async function initializeSchemaInPglite(pglite: PGlite): Promise<void> {
       enrolled_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       last_verified_at TIMESTAMPTZ,
       UNIQUE(tenant_id, customer_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS appointments (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      customer_id TEXT REFERENCES customers(id) ON DELETE SET NULL,
+      conversation_id TEXT REFERENCES conversations(id) ON DELETE SET NULL,
+      customer_name TEXT NOT NULL,
+      customer_phone TEXT NOT NULL,
+      service_type TEXT NOT NULL,
+      technician_name TEXT NOT NULL,
+      scheduled_start TIMESTAMPTZ NOT NULL,
+      scheduled_end TIMESTAMPTZ NOT NULL,
+      status TEXT NOT NULL DEFAULT 'confirmed',
+      notes TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
 }

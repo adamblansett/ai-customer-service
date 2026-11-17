@@ -83,7 +83,7 @@ stateDiagram-v2
 ## 3. Core Component Responsibilities
 
 ### 1. `packages/db` (Data Layer)
-- **Schema Management**: Typed Drizzle ORM definitions for 16 multi-tenant tables (including `call_flows`, `dnc_entries`, and `voiceprints`).
+- **Schema Management**: Typed Drizzle ORM definitions for 17 multi-tenant tables (including `call_flows`, `dnc_entries`, `voiceprints`, and `appointments`, plus `embedding_json` on `knowledge_chunks`).
 - **Cascade Deletion**: All tenant-scoped entities feature `ON DELETE CASCADE` referencing `tenants.id`.
 - **Database Engine Abstraction**: Supports production PostgreSQL 16 via `node-postgres` (`pg`) and offline in-memory testing via WebAssembly `@electric-sql/pglite`.
 
@@ -104,7 +104,9 @@ stateDiagram-v2
 - **WebSocket Multiplexer**: `ws://.../api/v1/voice/stream` (Twilio/FreeSWITCH bidirectional audio & barge-in) and `ws://.../api/v1/voice/coaching` (live WebRTC supervisor monitor/whisper/barge-in).
 - **Chat API**: `/api/v1/chat/public/session`, `/api/v1/chat/public/message`.
 - **Tenant & Enterprise API**:
-  - Built-In AI & BYOK Vault: `/api/v1/tenants/:tenantId/ai/builtin`, `/api/v1/tenants/:tenantId/ai/builtin/profile`, `/api/v1/tenants/:tenantId/credentials`
+  - Built-In AI, Speech & BYOK Vault: `/api/v1/tenants/:tenantId/ai/builtin`, `/api/v1/tenants/:tenantId/speech/builtin`, `/api/v1/tenants/:tenantId/credentials`
+  - Queues, Analytics & Billing: `/api/v1/tenants/:tenantId/queues`, `/api/v1/tenants/:tenantId/analytics`, `/api/v1/tenants/:tenantId/billing`
+  - Native Appointments & Multilingual Routing: `/api/v1/tenants/:tenantId/appointments`, `/api/v1/tenants/:tenantId/appointments/slots`, `/api/v1/tenants/:tenantId/i18n/detect`
   - Visual Call Flows: `/api/v1/tenants/:tenantId/flows` (PostgreSQL-backed CRUD & simulation)
   - Customer 360 & Journeys: `/api/v1/tenants/:tenantId/customers`
   - Supervisor Coaching & Multi-Agent Orchestration: `/api/v1/tenants/:tenantId/calls/:callSid/coaching`, `/api/v1/tenants/:tenantId/conversations/:id/orchestrate`

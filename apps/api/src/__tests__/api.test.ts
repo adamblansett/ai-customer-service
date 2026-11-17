@@ -628,5 +628,84 @@ describe('API Server Integration & Security Suite', () => {
       expect(mistralRes.body.selectedBuiltInProfile.id).toBe('mistral-small:24b');
       expect(mistralRes.body.activeModel).toBe('mistral-small:24b');
     });
+
+    it('manages Built-In Open-Weights Speech (Faster-Whisper STT + Kokoro-82M TTS), Queues, Analytics, Billing, Appointments, and Multilingual RAG', async () => {
+      // 1. Built-In Open-Weights Speech (STT & TTS)
+      const speechStatus = await request(app)
+        .get(`/api/v1/tenants/${tenant1Id}/speech/builtin`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`);
+
+      expect(speechStatus.status).toBe(200);
+      expect(speechStatus.body.activeSttProfile).toBe('whisper-large-v3-turbo');
+      expect(speechStatus.body.activeTtsProfile).toBe('kokoro-82m');
+      expect(speechStatus.body.availableSttModels).toHaveLength(3);
+      expect(speechStatus.body.availableTtsModels).toHaveLength(2);
+
+      const speechSwitch = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/speech/builtin/profile`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({
+          sttProfile: 'distil-whisper-large-v3',
+          ttsProfile: 'piper-en-us-lessac-medium',
+          defaultVoice: 'ef_dora',
+        });
+
+      expect(speechSwitch.status).toBe(200);
+      expect(speechSwitch.body.activeSttProfile).toBe('distil-whisper-large-v3');
+      expect(speechSwitch.body.activeTtsProfile).toBe('piper-en-us-lessac-medium');
+
+      // 2. Queues, Analytics, and Billing live endpoints
+      const queuesRes = await request(app)
+        .get(`/api/v1/tenants/${tenant1Id}/queues`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`);
+      expect(queuesRes.status).toBe(200);
+      expect(queuesRes.body.agents.length).toBeGreaterThan(0);
+
+      const analyticsRes = await request(app)
+        .get(`/api/v1/tenants/${tenant1Id}/analytics`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`);
+      expect(analyticsRes.status).toBe(200);
+      expect(analyticsRes.body.summary.averageCsat).toBeGreaterThan(0);
+
+      const billingRes = await request(app)
+        .get(`/api/v1/tenants/${tenant1Id}/billing`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`);
+      expect(billingRes.status).toBe(200);
+      expect(billingRes.body.invoice.totalBillableCents).toBeGreaterThan(0);
+
+      // 3. Native Appointment Scheduling & Slot Checking
+      const slotsRes = await request(app)
+        .get(`/api/v1/tenants/${tenant1Id}/appointments/slots?date=2026-11-25`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`);
+      expect(slotsRes.status).toBe(200);
+      expect(slotsRes.body.slots).toHaveLength(4);
+
+      const bookRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/appointments`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({
+          customerName: 'Carlos Mendez',
+          customerPhone: '+15550777',
+          serviceType: 'furnace_repair',
+          scheduledStart: '2026-11-25T10:00:00.000Z',
+          scheduledEnd: '2026-11-25T12:00:00.000Z',
+          notes: 'Furnace igniter replacement',
+        });
+      expect(bookRes.status).toBe(201);
+      expect(bookRes.body.appointment.status).toBe('confirmed');
+
+      // 4. Multilingual Auto-Detection & Cross-Lingual RAG
+      const i18nRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/i18n/detect`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({
+          utterance: 'Hola, necesito ayuda con mi calefacción, ¿cuánto cuesta el diagnóstico?',
+          businessName: 'Acme Heating',
+        });
+      expect(i18nRes.status).toBe(200);
+      expect(i18nRes.body.profile.locale).toBe('es-US');
+      expect(i18nRes.body.profile.kokoroVoice).toBe('ef_dora');
+      expect(i18nRes.body.knowledgeHits.length).toBeGreaterThan(0);
+    });
   });
 });

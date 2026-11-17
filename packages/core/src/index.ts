@@ -24,3 +24,5 @@ export * from './campaigns/index.js';
 export * from './flows/index.js';
 export * from './customer/index.js';
 export * from './crm/index.js';
+export * from './scheduling/index.js';
+export * from './i18n/index.js';

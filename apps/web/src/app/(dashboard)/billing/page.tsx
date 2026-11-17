@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import {
   CreditCard,
   Zap,
@@ -15,14 +16,39 @@ import {
 
 export default function BillingPage() {
   const [selectedTier, setSelectedTier] = useState<'starter' | 'pro' | 'enterprise'>('pro');
+  const [voiceMinutesUsed, setVoiceMinutesUsed] = useState<number>(1420);
+  const [voiceMinutesQuota, setVoiceMinutesQuota] = useState<number>(3000);
+  const [tokensUsed, setTokensUsed] = useState<number>(482000);
+  const [tokensQuota, setTokensQuota] = useState<number>(1000000);
 
-  const voiceMinutesUsed = 1420;
-  const voiceMinutesQuota = 3000;
-  const voicePercent = Math.round((voiceMinutesUsed / voiceMinutesQuota) * 100);
+  const tenantId =
+    typeof window !== 'undefined'
+      ? localStorage.getItem('active_tenant_id') || 'tenant_acme_hvac_001'
+      : 'tenant_acme_hvac_001';
 
-  const tokensUsed = 482000;
-  const tokensQuota = 1000000;
-  const tokensPercent = Math.round((tokensUsed / tokensQuota) * 100);
+  useEffect(() => {
+    apiFetch<{
+      summary: { tier: 'starter' | 'pro' | 'enterprise'; voiceMinutesTotal: number; aiTokensTotal: number };
+      invoice: { includedVoiceMinutes: number; includedAiTokens: number };
+    }>(`/tenants/${tenantId}/billing`)
+      .then((data) => {
+        if (data?.summary) {
+          setSelectedTier(data.summary.tier);
+          setVoiceMinutesUsed(data.summary.voiceMinutesTotal);
+          setTokensUsed(data.summary.aiTokensTotal);
+        }
+        if (data?.invoice) {
+          setVoiceMinutesQuota(data.invoice.includedVoiceMinutes);
+          setTokensQuota(data.invoice.includedAiTokens);
+        }
+      })
+      .catch(() => {
+        // Keep local defaults
+      });
+  }, [tenantId]);
+
+  const voicePercent = Math.round((voiceMinutesUsed / Math.max(1, voiceMinutesQuota)) * 100);
+  const tokensPercent = Math.round((tokensUsed / Math.max(1, tokensQuota)) * 100);
 
   return (
     <div className="space-y-6">

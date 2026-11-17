@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import {
   Users,
   Clock,
@@ -104,20 +105,54 @@ export default function QueuesPage() {
   const [myStatus, setMyStatus] = useState<'available' | 'on_call' | 'away' | 'wrap_up'>('available');
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
-  const handleAssignToMe = (callId: string) => {
+  const tenantId =
+    typeof window !== 'undefined'
+      ? localStorage.getItem('active_tenant_id') || 'tenant_acme_hvac_001'
+      : 'tenant_acme_hvac_001';
+
+  useEffect(() => {
+    apiFetch<{ queue: QueuedCaller[]; agents: AgentPresence[] }>(
+      `/tenants/${tenantId}/queues`
+    )
+      .then((data) => {
+        if (data?.queue) setQueue(data.queue);
+        if (data?.agents) setAgents(data.agents);
+      })
+      .catch(() => {
+        // Fallback to INITIAL_QUEUE / INITIAL_AGENTS
+      });
+  }, [tenantId]);
+
+  const handleAssignToMe = async (callId: string) => {
     const caller = queue.find((q) => q.id === callId);
     if (!caller) return;
     setQueue((prev) => prev.filter((q) => q.id !== callId));
     setMyStatus('on_call');
     setActionNotice(`Call ${caller.phoneNumber} answered and bridged to your WebRTC console.`);
     setTimeout(() => setActionNotice(null), 5000);
+    try {
+      await apiFetch(`/tenants/${tenantId}/queues/assign`, {
+        method: 'POST',
+        body: JSON.stringify({ strategy: 'longest-idle' }),
+      });
+    } catch {
+      // Optimistically updated
+    }
   };
 
-  const handleUpdateStatus = (status: 'available' | 'on_call' | 'away' | 'wrap_up') => {
+  const handleUpdateStatus = async (status: 'available' | 'on_call' | 'away' | 'wrap_up') => {
     setMyStatus(status);
     setAgents((prev) =>
       prev.map((ag) => (ag.id === 'ag-1' ? { ...ag, status } : ag))
     );
+    try {
+      await apiFetch(`/tenants/${tenantId}/queues/agents/ag-1/status`, {
+        method: 'POST',
+        body: JSON.stringify({ status }),
+      });
+    } catch {
+      // Optimistically updated
+    }
   };
 
   const filteredQueue = queue.filter((c) => {

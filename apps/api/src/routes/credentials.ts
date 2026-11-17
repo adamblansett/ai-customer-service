@@ -9,6 +9,11 @@ import {
   TenantAiResolver,
   BUILT_IN_OPEN_WEIGHT_MODELS,
   type BuiltInModelProfileId,
+  TenantSpeechResolver,
+  BUILT_IN_STT_MODELS,
+  BUILT_IN_TTS_MODELS,
+  type BuiltInSttProfileId,
+  type BuiltInTtsProfileId,
 } from '@customer-service/core';
 import crypto from 'node:crypto';
 
@@ -65,6 +70,57 @@ export function createCredentialsRouter(db: DatabaseInstance): Router {
         selectedBuiltInProfile: BUILT_IN_OPEN_WEIGHT_MODELS[profileId],
         activeMode: resolved.mode,
         activeModel: resolved.model,
+      });
+    }
+  );
+
+  // GET /api/v1/tenants/:tenantId/speech/builtin - Get Built-In Open-Weights Speech (STT & TTS) status
+  router.get(
+    '/:tenantId/speech/builtin',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
+    async (req: Request, res: Response): Promise<void> => {
+      const tenantId = req.params.tenantId;
+      const profiles = TenantSpeechResolver.getTenantSpeechProfiles(tenantId);
+
+      res.json({
+        activeSttProfile: profiles.sttProfile,
+        activeTtsProfile: profiles.ttsProfile,
+        defaultVoice: profiles.defaultVoice,
+        sttSpec: profiles.sttSpec,
+        ttsSpec: profiles.ttsSpec,
+        availableSttModels: Object.values(BUILT_IN_STT_MODELS),
+        availableTtsModels: Object.values(BUILT_IN_TTS_MODELS),
+      });
+    }
+  );
+
+  // POST /api/v1/tenants/:tenantId/speech/builtin/profile - Switch Built-In Open-Weights STT/TTS Presets
+  router.post(
+    '/:tenantId/speech/builtin/profile',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin']),
+    async (req: Request, res: Response): Promise<void> => {
+      const tenantId = req.params.tenantId;
+      const { sttProfile, ttsProfile, defaultVoice } = req.body as {
+        sttProfile?: BuiltInSttProfileId;
+        ttsProfile?: BuiltInTtsProfileId;
+        defaultVoice?: string;
+      };
+
+      const updated = TenantSpeechResolver.setTenantSpeechProfiles(tenantId, {
+        sttProfile,
+        ttsProfile,
+        defaultVoice,
+      });
+
+      res.json({
+        success: true,
+        activeSttProfile: updated.sttProfile,
+        activeTtsProfile: updated.ttsProfile,
+        defaultVoice: updated.defaultVoice,
+        sttSpec: updated.sttSpec,
+        ttsSpec: updated.ttsSpec,
       });
     }
   );

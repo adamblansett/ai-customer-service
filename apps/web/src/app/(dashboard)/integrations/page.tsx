@@ -9,6 +9,7 @@ import {
   Trash2,
   Lock,
   Cpu,
+  Sparkles,
 } from 'lucide-react';
 
 interface IntegrationCredential {
@@ -98,6 +99,9 @@ export default function IntegrationsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [builtInProfileId, setBuiltInProfileId] = useState<BuiltInPresetId>('qwen2.5:7b-instruct');
   const [activeAiMode, setActiveAiMode] = useState<'byok' | 'builtin_open_weights'>('builtin_open_weights');
+  const [sttProfileId, setSttProfileId] = useState<string>('whisper-large-v3-turbo');
+  const [ttsProfileId, setTtsProfileId] = useState<string>('kokoro-82m');
+  const [defaultVoice, setDefaultVoice] = useState<string>('af_heart');
 
   const tenantId = typeof window !== 'undefined'
     ? localStorage.getItem('active_tenant_id') || 'tenant_acme_hvac_001'
@@ -106,22 +110,50 @@ export default function IntegrationsPage() {
   const fetchCredentials = async () => {
     setIsLoading(true);
     try {
-      const [credData, builtInData] = await Promise.all([
+      const [credData, builtInData, speechData] = await Promise.all([
         apiFetch<{ credentials: IntegrationCredential[] }>(`/tenants/${tenantId}/credentials`),
         apiFetch<{
           activeMode: 'byok' | 'builtin_open_weights';
           selectedBuiltInProfile: BuiltInAiProfile;
         }>(`/tenants/${tenantId}/ai/builtin`).catch(() => null),
+        apiFetch<{
+          activeSttProfile: string;
+          activeTtsProfile: string;
+          defaultVoice: string;
+        }>(`/tenants/${tenantId}/speech/builtin`).catch(() => null),
       ]);
       setCredentials(credData.credentials || []);
       if (builtInData) {
         setActiveAiMode(builtInData.activeMode);
         setBuiltInProfileId(builtInData.selectedBuiltInProfile.id);
       }
+      if (speechData) {
+        setSttProfileId(speechData.activeSttProfile);
+        setTtsProfileId(speechData.activeTtsProfile);
+        setDefaultVoice(speechData.defaultVoice);
+      }
     } catch {
       // Ignore
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSelectSpeechProfile = async (update: {
+    sttProfile?: string;
+    ttsProfile?: string;
+    defaultVoice?: string;
+  }) => {
+    if (update.sttProfile) setSttProfileId(update.sttProfile);
+    if (update.ttsProfile) setTtsProfileId(update.ttsProfile);
+    if (update.defaultVoice) setDefaultVoice(update.defaultVoice);
+    try {
+      await apiFetch(`/tenants/${tenantId}/speech/builtin/profile`, {
+        method: 'POST',
+        body: JSON.stringify(update),
+      });
+    } catch {
+      // Local state already updated optimistically
     }
   };
 
@@ -252,6 +284,83 @@ export default function IntegrationsPage() {
               </p>
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Built-In Open-Weights Speech (STT & TTS) Card */}
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-sky-600" />
+              <span>Built-In Open-Weights Voice Pipeline (Faster-Whisper STT + Kokoro-82M TTS)</span>
+            </h2>
+            <p className="text-xs text-slate-600 mt-1">
+              Zero-API-key speech recognition and neural voice synthesis running locally on CPU or GPU.
+            </p>
+          </div>
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-sky-100 text-sky-800 border border-sky-200">
+            Active: {sttProfileId} + {ttsProfileId} ({defaultVoice})
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+          {/* STT Preset Selector */}
+          <div className="p-4 rounded-xl border border-slate-200 space-y-2.5">
+            <label className="block text-xs font-bold uppercase text-slate-700">
+              Speech-to-Text (STT) Open-Weights Model
+            </label>
+            <select
+              value={sttProfileId}
+              onChange={(e) => handleSelectSpeechProfile({ sttProfile: e.target.value })}
+              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white font-medium"
+            >
+              <option value="whisper-large-v3-turbo">
+                Whisper Large v3 Turbo (MIT • 809M • 99+ Languages • 6x Faster)
+              </option>
+              <option value="distil-whisper-large-v3">
+                Distil-Whisper Large v3 (MIT • 756M • Fast English CPU)
+              </option>
+              <option value="whisper-base.en">
+                Whisper Base.en (MIT • 74M • Ultra-Light Edge CPU)
+              </option>
+            </select>
+            <p className="text-[11px] text-slate-500">
+              Transcribes inbound PSTN & WebRTC audio streams locally without per-minute Deepgram charges.
+            </p>
+          </div>
+
+          {/* TTS Preset Selector */}
+          <div className="p-4 rounded-xl border border-slate-200 space-y-2.5">
+            <label className="block text-xs font-bold uppercase text-slate-700">
+              Text-to-Speech (TTS) Neural Voice Engine
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <select
+                value={ttsProfileId}
+                onChange={(e) => handleSelectSpeechProfile({ ttsProfile: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white font-medium"
+              >
+                <option value="kokoro-82m">Kokoro-82M (Apache 2.0 • 82M CPU)</option>
+                <option value="piper-en-us-lessac-medium">Piper ONNX (MIT • 28M Edge CPU)</option>
+              </select>
+              <select
+                value={defaultVoice}
+                onChange={(e) => handleSelectSpeechProfile({ defaultVoice: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white font-medium"
+              >
+                <option value="af_heart">Voice: af_heart (Warm US Female)</option>
+                <option value="af_bella">Voice: af_bella (Expressive US Female)</option>
+                <option value="am_adam">Voice: am_adam (Clear US Male)</option>
+                <option value="bf_emma">Voice: bf_emma (British Female)</option>
+                <option value="ef_dora">Voice: ef_dora (Spanish Female)</option>
+                <option value="ff_siwis">Voice: ff_siwis (French Female)</option>
+              </select>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Synthesizes natural 8kHz μ-law telephony speech faster than real-time on standard CPUs.
+            </p>
+          </div>
         </div>
       </div>
 
