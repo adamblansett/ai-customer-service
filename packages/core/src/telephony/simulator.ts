@@ -223,6 +223,12 @@ export class VoiceCallSimulator {
 
         if (tc.name === 'lookup_knowledge' && toolResult.success && toolResult.data?.results?.length > 0) {
           finalContent = toolResult.data.results[0].content;
+        } else if (tc.name === 'check_available_slots' && toolResult.success && toolResult.data?.slots) {
+          const labels = toolResult.data.slots.map((s: any) => s.windowLabel).join(', ');
+          finalContent = `We have the following technician windows available on ${toolResult.data.date}: ${labels}. Which window works best for you?`;
+        } else if (tc.name === 'book_appointment' && toolResult.success && toolResult.data?.appointment) {
+          const appt = toolResult.data.appointment;
+          finalContent = `Your ${appt.serviceType} appointment with technician ${appt.technicianName} is confirmed (Reference: ${appt.id}).`;
         } else if (tc.name === 'request_transfer_to_human') {
           const decision = await this.escalationEngine.processEscalation({
             tenantId: params.tenantId,

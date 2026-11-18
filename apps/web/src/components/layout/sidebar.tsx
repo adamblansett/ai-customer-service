@@ -18,12 +18,16 @@ import {
   CreditCard,
   GitFork,
   Contact,
+  CalendarCheck,
+  Megaphone,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
   { href: '/overview', label: 'Overview', icon: LayoutDashboard },
   { href: '/conversations', label: 'Live Conversations', icon: MessagesSquare },
   { href: '/queues', label: 'Queues & ACD', icon: Users },
+  { href: '/appointments', label: 'Appointments & Dispatch', icon: CalendarCheck },
+  { href: '/campaigns', label: 'Campaigns & DNC', icon: Megaphone },
   { href: '/flows', label: 'Call Flow & IVR', icon: GitFork },
   { href: '/customers', label: 'Customer 360', icon: Contact },
   { href: '/analytics', label: 'Analytics & CSAT', icon: BarChart3 },

@@ -100,6 +100,10 @@ export async function initializeSchemaInPglite(pglite: PGlite): Promise<void> {
       retention_days INTEGER NOT NULL DEFAULT 90,
       transfer_timeout_seconds INTEGER NOT NULL DEFAULT 30,
       after_hours_behavior TEXT NOT NULL DEFAULT 'callback',
+      built_in_ai_profile TEXT NOT NULL DEFAULT 'qwen2.5:7b-instruct',
+      built_in_stt_profile TEXT NOT NULL DEFAULT 'whisper-large-v3-turbo',
+      built_in_tts_profile TEXT NOT NULL DEFAULT 'kokoro-82m',
+      built_in_voice TEXT NOT NULL DEFAULT 'af_heart',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
@@ -268,8 +272,8 @@ export async function initializeSchemaInPglite(pglite: PGlite): Promise<void> {
     CREATE TABLE IF NOT EXISTS appointments (
       id TEXT PRIMARY KEY,
       tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-      customer_id TEXT REFERENCES customers(id) ON DELETE SET NULL,
-      conversation_id TEXT REFERENCES conversations(id) ON DELETE SET NULL,
+      customer_id TEXT,
+      conversation_id TEXT,
       customer_name TEXT NOT NULL,
       customer_phone TEXT NOT NULL,
       service_type TEXT NOT NULL,

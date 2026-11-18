@@ -5,6 +5,7 @@ export * from './security/tenant.js';
 export * from './security/sso.js';
 export * from './security/scim.js';
 export * from './security/biometrics.js';
+export * from './security/webhook-signature.js';
 
 export * from './conversation/types.js';
 export * from './conversation/state-machine.js';

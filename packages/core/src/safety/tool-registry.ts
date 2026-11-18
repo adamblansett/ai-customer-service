@@ -3,6 +3,7 @@ import { eq, and } from 'drizzle-orm';
 import * as schema from '@customer-service/db/schema';
 import type { DatabaseInstance } from '@customer-service/db';
 import { KnowledgeRetriever } from '../knowledge/retriever.js';
+import { AppointmentScheduler, APPOINTMENT_AI_TOOLS } from '../scheduling/appointments.js';
 import {
   ToolCategory,
   ToolExecutionContext,
@@ -15,9 +16,11 @@ import crypto from 'node:crypto';
 
 export class ToolRegistry {
   private retriever: KnowledgeRetriever;
+  private scheduler: AppointmentScheduler;
 
   constructor(private db: DatabaseInstance) {
     this.retriever = new KnowledgeRetriever(db);
+    this.scheduler = new AppointmentScheduler(db);
   }
 
   /**
@@ -98,6 +101,7 @@ export class ToolRegistry {
           required: ['reason'],
         },
       },
+      ...APPOINTMENT_AI_TOOLS,
     ];
   }
 
@@ -256,6 +260,85 @@ export class ToolRegistry {
               timeoutSeconds: settings?.transferTimeoutSeconds || 30,
               reason: parsed.reason,
             },
+          };
+          break;
+        }
+
+        case 'check_available_slots': {
+          const validator = z.object({
+            date: z.string().min(8),
+            serviceType: z.string().optional(),
+          });
+          const parsed = validator.parse(args);
+          const slots = await this.scheduler.checkAvailableSlots(context.tenantId, parsed.date);
+          result = {
+            success: true,
+            data: {
+              date: parsed.date,
+              slots,
+            },
+          };
+          break;
+        }
+
+        case 'book_appointment': {
+          const validator = z.object({
+            customerName: z.string().min(1),
+            customerPhone: z.string().min(4),
+            serviceType: z.string().min(1),
+            scheduledStart: z.string().min(10),
+            scheduledEnd: z.string().min(10),
+            technicianName: z.string().optional(),
+            notes: z.string().optional(),
+          });
+          const parsed = validator.parse(args);
+          const appointment = await this.scheduler.bookAppointment({
+            tenantId: context.tenantId,
+            customerId: context.customerId,
+            conversationId: context.conversationId,
+            ...parsed,
+          });
+          result = {
+            success: true,
+            data: { appointment },
+          };
+          break;
+        }
+
+        case 'reschedule_appointment': {
+          const validator = z.object({
+            appointmentId: z.string().min(1),
+            scheduledStart: z.string().min(10),
+            scheduledEnd: z.string().min(10),
+          });
+          const parsed = validator.parse(args);
+          const appointment = await this.scheduler.rescheduleAppointment(
+            context.tenantId,
+            parsed.appointmentId,
+            parsed.scheduledStart,
+            parsed.scheduledEnd
+          );
+          result = {
+            success: true,
+            data: { appointment },
+          };
+          break;
+        }
+
+        case 'cancel_appointment': {
+          const validator = z.object({
+            appointmentId: z.string().min(1),
+            reason: z.string().optional(),
+          });
+          const parsed = validator.parse(args);
+          const appointment = await this.scheduler.cancelAppointment(
+            context.tenantId,
+            parsed.appointmentId,
+            parsed.reason
+          );
+          result = {
+            success: true,
+            data: { appointment },
           };
           break;
         }

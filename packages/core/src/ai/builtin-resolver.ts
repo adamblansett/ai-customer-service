@@ -204,6 +204,49 @@ export class TenantAiResolver {
   }
 
   /**
+   * Persists the tenant's selected Built-In Open-Weights AI profile in PostgreSQL business_settings
+   * as well as the in-memory cache so it survives container restarts and horizontal scaling.
+   */
+  public async saveTenantBuiltInProfile(
+    tenantId: string,
+    profile: BuiltInModelProfileId
+  ): Promise<void> {
+    TenantAiResolver.setTenantBuiltInProfile(tenantId, profile);
+    try {
+      await this.db
+        .update(schema.businessSettings)
+        .set({
+          builtInAiProfile: profile,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.businessSettings.tenantId, tenantId));
+    } catch {
+      // Non-fatal if business_settings row does not exist yet
+    }
+  }
+
+  /**
+   * Loads the tenant's persisted Built-In Open-Weights AI profile from PostgreSQL business_settings.
+   */
+  public async loadTenantBuiltInProfile(tenantId: string): Promise<BuiltInModelProfileId> {
+    try {
+      const [settings] = await this.db
+        .select({ builtInAiProfile: schema.businessSettings.builtInAiProfile })
+        .from(schema.businessSettings)
+        .where(eq(schema.businessSettings.tenantId, tenantId));
+
+      const dbProfile = settings?.builtInAiProfile as BuiltInModelProfileId | undefined;
+      if (dbProfile && BUILT_IN_OPEN_WEIGHT_MODELS[dbProfile]) {
+        tenantBuiltInProfileStore.set(tenantId, dbProfile);
+        return dbProfile;
+      }
+    } catch {
+      // Fall back to in-memory cache
+    }
+    return TenantAiResolver.getTenantBuiltInProfile(tenantId);
+  }
+
+  /**
    * Resolves the AI provider for a tenant using the 3-tier hierarchy:
    * 1. Active BYOK credential in PostgreSQL (OpenAI, Anthropic, Gemini, Groq)
    * 2. Built-In Open-Weights AI (Qwen 2.5, Llama 3.1/3.2, or Mistral Small 24B)
@@ -252,7 +295,7 @@ export class TenantAiResolver {
       // If BYOK lookup or decryption fails, fall through to Built-In Open-Weights AI
     }
 
-    const profileId = TenantAiResolver.getTenantBuiltInProfile(tenantId);
+    const profileId = await this.loadTenantBuiltInProfile(tenantId);
     const profile =
       BUILT_IN_OPEN_WEIGHT_MODELS[profileId] ||
       BUILT_IN_OPEN_WEIGHT_MODELS['qwen2.5:7b-instruct'];

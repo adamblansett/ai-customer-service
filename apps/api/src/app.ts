@@ -5,6 +5,12 @@ import cookieParser from 'cookie-parser';
 import type { DatabaseInstance } from '@customer-service/db';
 import { correlationMiddleware } from './middleware/correlation.js';
 import { errorHandler } from './middleware/error-handler.js';
+import {
+  metricsMiddleware,
+  renderPrometheusMetrics,
+  createRateLimiter,
+  webhookSignatureMiddleware,
+} from './middleware/observability.js';
 import { createAuthRouter } from './routes/auth.js';
 import { createTenantsRouter } from './routes/tenants.js';
 import { createCredentialsRouter } from './routes/credentials.js';
@@ -42,10 +48,17 @@ export function createApp(db: DatabaseInstance): Express {
   app.use(express.json({ limit: '5mb' }));
   app.use(express.urlencoded({ extended: true, limit: '5mb' }));
   app.use(correlationMiddleware);
+  app.use(metricsMiddleware);
+  app.use(createRateLimiter({ windowMs: 60_000, maxRequests: 500 }));
 
-  // Health checks
+  // Health & Prometheus Metrics checks
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
+  app.get('/metrics', (_req, res) => {
+    res.setHeader('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+    res.send(renderPrometheusMetrics());
   });
 
   app.get('/health/ready', async (_req, res) => {
@@ -75,11 +88,11 @@ export function createApp(db: DatabaseInstance): Express {
   app.use('/api/v1/tenants', createCustomersRouter(db));
   app.use('/api/v1/tenants', createEnterpriseRouter(db));
   app.use('/api/v1/tenants', createOperationsRouter(db));
-  app.use('/api/v1/voice', createTelephonyRouter(db));
+  app.use('/api/v1/voice', webhookSignatureMiddleware, createTelephonyRouter(db));
   app.use('/api/v1/chat', createChatRouter(db));
-  app.use('/api/v1/sms', createSmsRouter(db));
+  app.use('/api/v1/sms', webhookSignatureMiddleware, createSmsRouter(db));
   app.use('/api/v1/email', createEmailRouter(db));
-  app.use('/api/v1/whatsapp', createWhatsAppRouter(db));
+  app.use('/api/v1/whatsapp', webhookSignatureMiddleware, createWhatsAppRouter(db));
 
   // Global Error Handler
   app.use(errorHandler);

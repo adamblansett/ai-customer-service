@@ -62,7 +62,7 @@ export function createCredentialsRouter(db: DatabaseInstance): Router {
         return;
       }
 
-      TenantAiResolver.setTenantBuiltInProfile(tenantId, profileId);
+      await aiResolver.saveTenantBuiltInProfile(tenantId, profileId);
       const resolved = await aiResolver.resolveForTenant(tenantId);
 
       res.json({
@@ -70,6 +70,7 @@ export function createCredentialsRouter(db: DatabaseInstance): Router {
         selectedBuiltInProfile: BUILT_IN_OPEN_WEIGHT_MODELS[profileId],
         activeMode: resolved.mode,
         activeModel: resolved.model,
+        persistedInDb: true,
       });
     }
   );
@@ -81,6 +82,27 @@ export function createCredentialsRouter(db: DatabaseInstance): Router {
     requireTenantRole(db, ['owner', 'admin', 'agent']),
     async (req: Request, res: Response): Promise<void> => {
       const tenantId = req.params.tenantId;
+      try {
+        const [settings] = await db
+          .select({
+            sttProfile: schema.businessSettings.builtInSttProfile,
+            ttsProfile: schema.businessSettings.builtInTtsProfile,
+            defaultVoice: schema.businessSettings.builtInVoice,
+          })
+          .from(schema.businessSettings)
+          .where(eq(schema.businessSettings.tenantId, tenantId));
+
+        if (settings) {
+          TenantSpeechResolver.setTenantSpeechProfiles(tenantId, {
+            sttProfile: settings.sttProfile as BuiltInSttProfileId,
+            ttsProfile: settings.ttsProfile as BuiltInTtsProfileId,
+            defaultVoice: settings.defaultVoice,
+          });
+        }
+      } catch {
+        // Fallback to in-memory
+      }
+
       const profiles = TenantSpeechResolver.getTenantSpeechProfiles(tenantId);
 
       res.json({
@@ -114,6 +136,20 @@ export function createCredentialsRouter(db: DatabaseInstance): Router {
         defaultVoice,
       });
 
+      try {
+        await db
+          .update(schema.businessSettings)
+          .set({
+            builtInSttProfile: updated.sttProfile,
+            builtInTtsProfile: updated.ttsProfile,
+            builtInVoice: updated.defaultVoice,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.businessSettings.tenantId, tenantId));
+      } catch {
+        // Non-fatal if settings row missing
+      }
+
       res.json({
         success: true,
         activeSttProfile: updated.sttProfile,
@@ -121,6 +157,7 @@ export function createCredentialsRouter(db: DatabaseInstance): Router {
         defaultVoice: updated.defaultVoice,
         sttSpec: updated.sttSpec,
         ttsSpec: updated.ttsSpec,
+        persistedInDb: true,
       });
     }
   );

@@ -65,6 +65,10 @@ export const businessSettings = pgTable('business_settings', {
   retentionDays: integer('retention_days').notNull().default(90),
   transferTimeoutSeconds: integer('transfer_timeout_seconds').notNull().default(30),
   afterHoursBehavior: text('after_hours_behavior').notNull().default('callback'), // 'voicemail', 'callback', 'ai_only'
+  builtInAiProfile: text('built_in_ai_profile').notNull().default('qwen2.5:7b-instruct'),
+  builtInSttProfile: text('built_in_stt_profile').notNull().default('whisper-large-v3-turbo'),
+  builtInTtsProfile: text('built_in_tts_profile').notNull().default('kokoro-82m'),
+  builtInVoice: text('built_in_voice').notNull().default('af_heart'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
@@ -311,8 +315,8 @@ export const voiceprints = pgTable('voiceprints', {
 export const appointments = pgTable('appointments', {
   id: text('id').primaryKey(),
   tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
-  customerId: text('customer_id').references(() => customers.id, { onDelete: 'set null' }),
-  conversationId: text('conversation_id').references(() => conversations.id, { onDelete: 'set null' }),
+  customerId: text('customer_id'),
+  conversationId: text('conversation_id'),
   customerName: text('customer_name').notNull(),
   customerPhone: text('customer_phone').notNull(),
   serviceType: text('service_type').notNull(), // 'furnace_repair', 'ac_tuneup', 'emergency_dispatch', 'general_diagnostic'

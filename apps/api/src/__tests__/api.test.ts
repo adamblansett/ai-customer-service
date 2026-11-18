@@ -706,6 +706,19 @@ describe('API Server Integration & Security Suite', () => {
       expect(i18nRes.body.profile.locale).toBe('es-US');
       expect(i18nRes.body.profile.kokoroVoice).toBe('ef_dora');
       expect(i18nRes.body.knowledgeHits.length).toBeGreaterThan(0);
+
+      // 5. Prometheus /metrics, RateLimit headers, and Webhook Signature Verification
+      const metricsRes = await request(app).get('/metrics');
+      expect(metricsRes.status).toBe(200);
+      expect(metricsRes.text).toContain('ai_cs_http_requests_total');
+      expect(metricsRes.text).toContain('ai_cs_builtin_open_weights_info');
+      expect(metricsRes.headers['x-ratelimit-limit']).toBeDefined();
+
+      const forgedWebhook = await request(app)
+        .post(`/api/v1/voice/plivo?tenantId=${tenant1Id}`)
+        .set('X-Plivo-Signature-V2', 'forged_invalid_signature')
+        .send({ CallUUID: 'PL_FORGED_1', From: '+15550199', To: '+18005550100' });
+      expect(forgedWebhook.status).toBe(401);
     });
   });
 });

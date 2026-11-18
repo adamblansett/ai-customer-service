@@ -115,8 +115,8 @@ An open-source, self-hosted, Docker-first AI customer-service and contact-center
     - Automated tunnel setup script (`scripts/sandbox/start-tunnel.sh`) for testing real cell phone calls via Twilio with zero deployment friction.
 
 22. **Web Administration & Agent Console**:
-    - Built with **Next.js 14 App Router**, TypeScript, and Tailwind CSS (18 static routes).
-    - Visual Call Flow Builder (`/flows`) and Customer 360 & Journey Timeline (`/customers`).
+    - Built with **Next.js 14 App Router**, TypeScript, and Tailwind CSS (20 static routes).
+    - Visual Call Flow Builder (`/flows`), Customer 360 (`/customers`), Technician Dispatch Calendar (`/appointments`), and Outbound Campaigns & DNC (`/campaigns`).
     - Live Agent Copilot bar with one-click reply insertion and real-time sentiment escalation badges.
     - Real-time Contact Center Queues & ACD Wallboard (`/queues`) with live supervisor alert banner and whisper takeover.
     - Post-Call Analytics & CSAT Scoring (`/analytics`) with compliance auditing and AI summaries.
@@ -224,7 +224,7 @@ The test suite runs against embedded WebAssembly PostgreSQL (`PGlite`) with zero
 ```bash
 npm test
 ```
-All 175 unit, integration, and security tests will execute and pass across 30 test suites.
+All 176 unit, integration, and security tests will execute and pass across 30 test suites.
 
 ### 4. Build Monorepo
 ```bash

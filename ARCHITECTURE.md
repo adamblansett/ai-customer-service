@@ -116,8 +116,8 @@ stateDiagram-v2
 - **Privacy & Retention**: `/api/v1/privacy/purge-retention`, `/api/v1/privacy/export-data`.
 
 ### 4. `apps/web` (Operator & Agent Console)
-- Next.js 14 App Router application with Tailwind CSS and Lucide icons (18 routes).
-- Pages: `/overview`, `/conversations`, `/calls`, `/queues`, `/flows`, `/customers`, `/knowledge`, `/analytics`, `/billing`, `/simulator`, `/integrations`, `/settings`, `/login`, `/chat-widget`.
+- Next.js 14 App Router application with Tailwind CSS and Lucide icons (20 routes).
+- Pages: `/overview`, `/conversations`, `/calls`, `/queues`, `/appointments`, `/campaigns`, `/flows`, `/customers`, `/knowledge`, `/analytics`, `/billing`, `/simulator`, `/integrations`, `/settings`, `/login`, `/chat-widget`.
 
 ---
 

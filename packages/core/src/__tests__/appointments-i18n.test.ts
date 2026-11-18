@@ -6,6 +6,8 @@ import {
   KnowledgeRetriever,
   DeterministicSemanticEmbeddingProvider,
   cosineSimilarity,
+  ToolRegistry,
+  WebhookSignatureVerifier,
 } from '../index.js';
 
 describe('Appointments, Multilingual Auto-Detection & Hybrid Semantic RAG', () => {
@@ -119,5 +121,43 @@ describe('Appointments, Multilingual Auto-Detection & Hybrid Semantic RAG', () =
     const zhProfile = router.detectAndRoute('你好，请问暖气维修多少钱？');
     expect(zhProfile.locale).toBe('zh-CN');
     expect(zhProfile.twimlVoice).toBe('Polly.Zhiyu');
+  });
+
+  it('executes check_available_slots and book_appointment tools via ToolRegistry and verifies carrier webhook signatures', async () => {
+    const registry = new ToolRegistry(db);
+    const tools = registry.getPermittedToolDefinitions();
+    expect(tools.some((t) => t.name === 'book_appointment')).toBe(true);
+
+    const slotExec = await registry.executeTool(
+      'check_available_slots',
+      { date: '2026-11-28' },
+      { tenantId: tenant1Id, conversationId: 'conv_test_001' }
+    );
+    expect(slotExec.success).toBe(true);
+    expect(slotExec.data.slots).toHaveLength(4);
+
+    const bookExec = await registry.executeTool(
+      'book_appointment',
+      {
+        customerName: 'Diana Prince',
+        customerPhone: '+15550444',
+        serviceType: 'ac_tuneup',
+        scheduledStart: '2026-11-28T08:00:00.000Z',
+        scheduledEnd: '2026-11-28T10:00:00.000Z',
+      },
+      { tenantId: tenant1Id, conversationId: 'conv_test_001' }
+    );
+    expect(bookExec.success).toBe(true);
+    expect(bookExec.data.appointment.status).toBe('confirmed');
+
+    // Verify Twilio, Plivo, and WhatsApp HMAC signatures
+    const url = 'https://api.acme-hvac.example.com/api/v1/voice/inbound';
+    const params = { CallSid: 'CA12345', From: '+15550101', To: '+18005550199' };
+    const sig = WebhookSignatureVerifier.computeTwilioSignature('secret_token', url, params);
+    expect(WebhookSignatureVerifier.verifyTwilioSignature('secret_token', url, params, sig)).toBe(true);
+    expect(WebhookSignatureVerifier.verifyTwilioSignature('secret_token', url, params, 'forged_sig')).toBe(false);
+
+    const waSig = WebhookSignatureVerifier.computeWhatsAppSignature('meta_secret', '{"entry":[]}');
+    expect(WebhookSignatureVerifier.verifyWhatsAppSignature('meta_secret', '{"entry":[]}', waSig)).toBe(true);
   });
 });
