@@ -408,3 +408,20 @@ export const webhookSubscriptions = pgTable('webhook_subscriptions', {
 }, (table) => [
   index('webhook_subs_tenant_idx').on(table.tenantId),
 ]);
+
+// -------------------------------------------------------------
+// 22. Knowledge Base Document Versions Table (Governance & Rollback)
+// -------------------------------------------------------------
+export const knowledgeDocumentVersions = pgTable('knowledge_document_versions', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  documentId: text('document_id').notNull().references(() => knowledgeDocuments.id, { onDelete: 'cascade' }),
+  versionNumber: integer('version_number').notNull().default(1),
+  title: text('title').notNull(),
+  rawContent: text('raw_content').notNull(),
+  changeNote: text('change_note'),
+  createdBy: text('created_by'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('kb_versions_doc_idx').on(table.tenantId, table.documentId),
+]);

@@ -21,6 +21,10 @@ import {
   WorkforceManager,
   AmdDetector,
   TenantWebhookRegistry,
+  IncidentDispatcher,
+  DatasetExporter,
+  KnowledgeGovernance,
+  type FineTuningFormat,
 } from '@customer-service/core';
 
 const globalQueueManager = new CallQueueManager();
@@ -91,6 +95,9 @@ export function createOperationsRouter(db: DatabaseInstance): Router {
   const workforceManager = new WorkforceManager(db);
   const amdDetector = new AmdDetector();
   const webhookRegistry = new TenantWebhookRegistry(db);
+  const incidentDispatcher = new IncidentDispatcher();
+  const datasetExporter = new DatasetExporter(db);
+  const knowledgeGovernance = new KnowledgeGovernance(db);
 
   // ============================================================================
   // 1. Contact Center Queues & ACD Wallboard Endpoints
@@ -775,6 +782,99 @@ export function createOperationsRouter(db: DatabaseInstance): Router {
       const { eventType = 'appointment.booked', payload = {} } = req.body;
       const receipts = await webhookRegistry.dispatchEvent(tenantId, eventType, payload);
       res.json({ receipts });
+    }
+  );
+
+  // ============================================================================
+  // 14. Real-Time Incident Alerter (Slack, Microsoft Teams & PagerDuty)
+  // ============================================================================
+  router.post(
+    '/:tenantId/incidents/dispatch',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      const {
+        title = 'Emergency Queue Wait SLA Breach',
+        severity = 'critical',
+        source = 'sla_queue_breach',
+        callerPhone = '+15550101',
+        summary = 'Emergency HVAC caller waiting > 60s in priority queue.',
+      } = req.body;
+
+      const result = await incidentDispatcher.dispatchIncident({
+        tenantId,
+        title,
+        severity,
+        source,
+        callerPhone,
+        summary,
+      });
+      res.json(result);
+    }
+  );
+
+  // ============================================================================
+  // 15. Open-Weights LoRA Fine-Tuning Dataset Exporter (ShareGPT / OpenAI JSONL)
+  // ============================================================================
+  router.get(
+    '/:tenantId/ai/dataset-export',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      const format = ((req.query.format as string) || 'sharegpt') as FineTuningFormat;
+      const dataset = await datasetExporter.exportFineTuningDataset(tenantId, format);
+      res.json(dataset);
+    }
+  );
+
+  // ============================================================================
+  // 16. Knowledge Base Version History, Snapshots & 1-Click Rollback
+  // ============================================================================
+  router.get(
+    '/:tenantId/knowledge/:docId/versions',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId, docId } = req.params;
+      const versions = await knowledgeGovernance.listVersions(tenantId, docId);
+      res.json({ versions });
+    }
+  );
+
+  router.post(
+    '/:tenantId/knowledge/:docId/versions',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId, docId } = req.params;
+      const snapshot = await knowledgeGovernance.createVersionSnapshot({
+        tenantId,
+        documentId: docId,
+        ...req.body,
+      });
+      res.status(201).json({ version: snapshot });
+    }
+  );
+
+  router.post(
+    '/:tenantId/knowledge/:docId/rollback',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId, docId } = req.params;
+      const { versionNumber } = req.body;
+      try {
+        const result = await knowledgeGovernance.rollbackToVersion(
+          tenantId,
+          docId,
+          Number(versionNumber)
+        );
+        res.json(result);
+      } catch (err: any) {
+        res.status(404).json({ error: err.message });
+      }
     }
   );
 

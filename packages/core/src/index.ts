@@ -6,6 +6,7 @@ export * from './security/sso.js';
 export * from './security/scim.js';
 export * from './security/biometrics.js';
 export * from './security/webhook-signature.js';
+export * from './security/openapi-spec.js';
 
 export * from './conversation/types.js';
 export * from './conversation/state-machine.js';

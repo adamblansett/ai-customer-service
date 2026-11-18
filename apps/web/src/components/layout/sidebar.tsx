@@ -21,6 +21,7 @@ import {
   CalendarCheck,
   Megaphone,
   Calculator,
+  FileCode2,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -39,6 +40,7 @@ const NAV_ITEMS = [
   { href: '/billing', label: 'Billing & Usage', icon: CreditCard },
   { href: '/settings', label: 'Business Settings', icon: Settings },
   { href: '/integrations', label: 'BYOK Integrations', icon: KeyRound },
+  { href: '/api-docs', label: 'API & LoRA Studio', icon: FileCode2 },
   { href: '/chat-widget', label: 'Website Chat Demo', icon: MessageCircleCode },
 ];
 

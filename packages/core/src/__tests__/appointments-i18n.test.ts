@@ -16,6 +16,10 @@ import {
   WorkforceManager,
   AmdDetector,
   TenantWebhookRegistry,
+  generateOpenApiSpec,
+  IncidentDispatcher,
+  DatasetExporter,
+  KnowledgeGovernance,
 } from '../index.js';
 
 describe('Appointments, Multilingual Auto-Detection & Hybrid Semantic RAG', () => {
@@ -258,5 +262,50 @@ describe('Appointments, Multilingual Auto-Detection & Hybrid Semantic RAG', () =
     expect(receipts).toHaveLength(1);
     expect(receipts[0].delivered).toBe(true);
     expect(receipts[0].signatureHeader).toMatch(/^sha256=/);
+
+    // 8. OpenAPI 3.1 Spec, Incident Dispatcher, LoRA Dataset Exporter & Knowledge Governance Rollback
+    const spec = generateOpenApiSpec();
+    expect(spec.openapi).toBe('3.1.0');
+    expect(spec.paths['/api/v1/tenants/{tenantId}/ai/builtin']).toBeDefined();
+
+    const incidentDispatcher = new IncidentDispatcher();
+    const incRes = await incidentDispatcher.dispatchIncident({
+      tenantId: tenant1Id,
+      title: 'Emergency Queue Breach',
+      severity: 'critical',
+      source: 'sla_queue_breach',
+      summary: 'Caller waiting > 60s',
+    });
+    expect(incRes.dispatched).toBe(true);
+    expect(incRes.slackPayload.blocks).toHaveLength(3);
+    expect(incRes.pagerDutyPayload.event_action).toBe('trigger');
+
+    const exporter = new DatasetExporter(db);
+    const ds = await exporter.exportFineTuningDataset(tenant1Id, 'sharegpt');
+    expect(ds.piiRedacted).toBe(true);
+    expect(ds.exampleCount).toBeGreaterThan(0);
+
+    const governance = new KnowledgeGovernance(db);
+    const v1 = await governance.createVersionSnapshot({
+      tenantId: tenant1Id,
+      documentId: 'doc_acme_hours_001',
+      title: 'Business Hours and Emergency Service Policy',
+      rawContent: 'Original Hours: Monday through Friday 8 AM to 6 PM.',
+      changeNote: 'v1 baseline',
+    });
+    await governance.createVersionSnapshot({
+      tenantId: tenant1Id,
+      documentId: 'doc_acme_hours_001',
+      title: 'Business Hours Updated',
+      rawContent: 'Temporary holiday hours.',
+      changeNote: 'v2 holiday update',
+    });
+    const rolledBack = await governance.rollbackToVersion(
+      tenant1Id,
+      'doc_acme_hours_001',
+      v1.versionNumber
+    );
+    expect(rolledBack.restoredVersion).toBe(v1.versionNumber);
+    expect(rolledBack.document.rawContent).toContain('Original Hours');
   });
 });

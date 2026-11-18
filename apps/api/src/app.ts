@@ -3,6 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import type { DatabaseInstance } from '@customer-service/db';
+import { generateOpenApiSpec } from '@customer-service/core';
 import { correlationMiddleware } from './middleware/correlation.js';
 import { errorHandler } from './middleware/error-handler.js';
 import {
@@ -59,6 +60,11 @@ export function createApp(db: DatabaseInstance): Express {
   app.get('/metrics', (_req, res) => {
     res.setHeader('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
     res.send(renderPrometheusMetrics());
+  });
+
+  app.get('/api/v1/openapi.json', (req, res) => {
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    res.json(generateOpenApiSpec(baseUrl));
   });
 
   app.get('/health/ready', async (_req, res) => {

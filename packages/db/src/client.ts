@@ -342,6 +342,18 @@ export async function initializeSchemaInPglite(pglite: PGlite): Promise<void> {
       last_status_code INTEGER,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS knowledge_document_versions (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      document_id TEXT NOT NULL REFERENCES knowledge_documents(id) ON DELETE CASCADE,
+      version_number INTEGER NOT NULL DEFAULT 1,
+      title TEXT NOT NULL,
+      raw_content TEXT NOT NULL,
+      change_note TEXT,
+      created_by TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
   `);
 }
 

@@ -185,6 +185,21 @@ An open-source, self-hosted, Docker-first AI customer-service and contact-center
 40. **Tenant Outbound Event Webhooks & Interactive Admin CLI (`TenantWebhookRegistry` & `npm run cli`)**:
     - Per-tenant webhook subscriptions (`webhook_subscriptions`) signed with `HMAC-SHA256` (`X-Customer-Service-Signature`), plus the `npm run cli` tool (`status`, `eval`, `wfm-forecast`, `rotate-keys`).
 
+41. **OpenAPI 3.1 Specification & Interactive API / LoRA Studio (`/api/v1/openapi.json` & `/api-docs`)**:
+    - Live OpenAPI 3.1.0 schema covering all REST, Carrier Webhook, SCIM 2.0, and SSE endpoints (`generateOpenApiSpec`) and the `/api-docs` Explorer UI.
+
+42. **Real-Time Incident Alerter for Slack, Microsoft Teams & PagerDuty (`IncidentDispatcher`)**:
+    - Dispatches SLA queue breach and low-CSAT alerts formatted natively for **Slack Block Kit**, **Microsoft Teams Adaptive Cards v1.4**, and **PagerDuty Events API v2** (`POST /api/v1/tenants/:tenantId/incidents/dispatch`).
+
+43. **Open-Weights LoRA Fine-Tuning Dataset Exporter (`DatasetExporter`)**:
+    - Exports PII-redacted multi-turn conversations in **ShareGPT / ChatML (Unsloth / Qwen 2.5 / Llama 3.1)** and **OpenAI Fine-Tuning JSONL** formats (`GET /api/v1/tenants/:tenantId/ai/dataset-export`).
+
+44. **Knowledge Base Version History, Diffs & 1-Click Rollback (`KnowledgeGovernance`)**:
+    - Immutable revision snapshots (`knowledge_document_versions` table) and 1-click rollback (`POST /api/v1/tenants/:tenantId/knowledge/:docId/rollback`) that automatically re-chunks and re-embeds restored documents.
+
+45. **Synchronized Call Audio Waveform & Sentiment Turn Inspector (`/calls`)**:
+    - Dual-channel visual waveform player with turn-by-turn sentiment markers and executed AI tool badges (`lookup_knowledge`, `book_appointment`).
+
 ---
 
 ## Monorepo Architecture

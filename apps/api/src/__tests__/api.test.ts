@@ -784,6 +784,30 @@ describe('API Server Integration & Security Suite', () => {
         .send({ greetingDurationMs: 650, wordCount: 2, transcript: 'Hello?' });
       expect(amdRes.status).toBe(200);
       expect(amdRes.body.decision.classification).toBe('human_answered');
+
+      // 8. OpenAPI 3.1.0 Spec, LoRA Dataset Export, Incident Dispatch & Knowledge Version Rollback
+      const openApiRes = await request(app).get('/api/v1/openapi.json');
+      expect(openApiRes.status).toBe(200);
+      expect(openApiRes.body.openapi).toBe('3.1.0');
+
+      const loraRes = await request(app)
+        .get(`/api/v1/tenants/${tenant1Id}/ai/dataset-export?format=sharegpt`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`);
+      expect(loraRes.status).toBe(200);
+      expect(loraRes.body.piiRedacted).toBe(true);
+      expect(loraRes.body.jsonl).toContain('conversations');
+
+      const incRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/incidents/dispatch`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({
+          title: 'Low CSAT Alert',
+          severity: 'warning',
+          source: 'low_csat_alert',
+          summary: 'Customer rated 1/5',
+        });
+      expect(incRes.status).toBe(200);
+      expect(incRes.body.channelsNotified).toContain('pagerduty');
     });
   });
 });

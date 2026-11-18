@@ -197,6 +197,65 @@ export default function CallsPage() {
           </table>
         </div>
       </div>
+
+      {/* Interactive Call Recording & Turn-by-Turn Sentiment Waveform Inspector */}
+      <div className="bg-slate-900 text-white rounded-xl border border-slate-800 shadow-sm p-6 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 className="text-base font-bold flex items-center gap-2">
+              <PhoneCall className="w-4 h-4 text-sky-400" />
+              <span>Synchronized Call Audio Waveform & Sentiment Turn Inspector</span>
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              PII-redacted dual-channel recording playback with real-time sentiment markers and AI tool call badges.
+            </p>
+          </div>
+          <span className="text-xs font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1 rounded-full">
+            AI Disclosure & Recording Consent Verified
+          </span>
+        </div>
+
+        {/* Visual Audio Waveform Bars */}
+        <div className="flex items-end gap-1 h-14 bg-slate-950 p-3 rounded-xl border border-slate-800 overflow-hidden">
+          {[35, 60, 85, 45, 70, 95, 55, 40, 80, 100, 65, 50, 75, 90, 60, 45, 85, 70, 55, 95, 80, 60, 40, 75, 88, 62, 50, 92, 70, 45, 65, 80].map(
+            (height, idx) => (
+              <div
+                key={idx}
+                className={`flex-1 rounded-full transition-all ${
+                  idx % 3 === 0 ? 'bg-sky-400' : 'bg-emerald-400'
+                }`}
+                style={{ height: `${height}%` }}
+              />
+            )
+          )}
+        </div>
+
+        {/* Synchronized Turn Markers */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <div className="p-3 rounded-lg bg-slate-800/80 border border-slate-700">
+            <span className="text-[10px] font-mono text-sky-400 uppercase font-bold">00:02 • AI Greeting</span>
+            <p className="text-slate-200 mt-1">
+              &quot;Thank you for calling Acme HVAC. I am an automated AI assistant...&quot;
+            </p>
+          </div>
+          <div className="p-3 rounded-lg bg-slate-800/80 border border-slate-700">
+            <span className="text-[10px] font-mono text-amber-400 uppercase font-bold">
+              00:14 • Caller Utterance + RAG Tool
+            </span>
+            <p className="text-slate-200 mt-1">
+              Executed <code className="text-emerald-300">lookup_knowledge</code> (Score: 0.94) &bull; Grounded $89 diagnostic fee.
+            </p>
+          </div>
+          <div className="p-3 rounded-lg bg-slate-800/80 border border-slate-700">
+            <span className="text-[10px] font-mono text-emerald-400 uppercase font-bold">
+              00:38 • Appointment Confirmed
+            </span>
+            <p className="text-slate-200 mt-1">
+              Executed <code className="text-emerald-300">book_appointment</code> &bull; Assigned Tech: Marcus Vance.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
