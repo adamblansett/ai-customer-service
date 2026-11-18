@@ -28,6 +28,19 @@ export default function ChatWidgetPage() {
   const [businessName, setBusinessName] = useState('Acme Heating & Air Conditioning');
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [brandColor, setBrandColor] = useState('#0284c7');
+  const [widgetPosition, setWidgetPosition] = useState<'bottom-right' | 'bottom-left'>('bottom-right');
+  const [defaultLocale, setDefaultLocale] = useState<'en-US' | 'es-US' | 'fr-FR'>('en-US');
+  const [copiedSnippet, setCopiedSnippet] = useState(false);
+
+  const embedScriptSnippet = `<script
+  src="https://cdn.acme-hvac.example.com/widget.js"
+  data-tenant-slug="acme-hvac"
+  data-brand-color="${brandColor}"
+  data-position="${widgetPosition}"
+  data-locale="${defaultLocale}"
+  async
+></script>`;
 
   useEffect(() => {
     const initChat = async () => {
@@ -186,6 +199,67 @@ export default function ChatWidgetPage() {
 
       <div className="mt-4 text-center text-xs text-slate-400">
         Reuses identical Conversation Engine, Knowledge Base, and Safety Guardrails as Inbound Voice.
+      </div>
+
+      {/* Visual Widget Customizer & Embed Snippet Generator */}
+      <div className="w-full max-w-lg mt-6 bg-slate-800 border border-slate-700 rounded-2xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-white">Visual Widget Customizer & Embed Code</h3>
+          <span className="text-[11px] font-mono text-sky-400">{defaultLocale} • {widgetPosition}</span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3 text-xs">
+          <div>
+            <label className="block text-slate-400 mb-1">Brand Color</label>
+            <input
+              type="color"
+              value={brandColor}
+              onChange={(e) => setBrandColor(e.target.value)}
+              className="w-full h-8 rounded cursor-pointer bg-slate-900 border border-slate-700"
+            />
+          </div>
+          <div>
+            <label className="block text-slate-400 mb-1">Position</label>
+            <select
+              value={widgetPosition}
+              onChange={(e) => setWidgetPosition(e.target.value as any)}
+              className="w-full px-2 py-1.5 rounded bg-slate-900 border border-slate-700 text-white"
+            >
+              <option value="bottom-right">Bottom Right</option>
+              <option value="bottom-left">Bottom Left</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-slate-400 mb-1">Default Locale</label>
+            <select
+              value={defaultLocale}
+              onChange={(e) => setDefaultLocale(e.target.value as any)}
+              className="w-full px-2 py-1.5 rounded bg-slate-900 border border-slate-700 text-white"
+            >
+              <option value="en-US">English (en-US)</option>
+              <option value="es-US">Español (es-US)</option>
+              <option value="fr-FR">Français (fr-FR)</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-[11px] text-emerald-400 overflow-x-auto">
+          <pre>{embedScriptSnippet}</pre>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof navigator !== 'undefined' && navigator.clipboard) {
+              navigator.clipboard.writeText(embedScriptSnippet);
+            }
+            setCopiedSnippet(true);
+            setTimeout(() => setCopiedSnippet(false), 3000);
+          }}
+          className="w-full py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold transition-colors"
+        >
+          {copiedSnippet ? '✓ Copied Embed Snippet to Clipboard' : 'Copy <script> Embed Snippet'}
+        </button>
       </div>
     </div>
   );

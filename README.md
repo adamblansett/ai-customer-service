@@ -161,6 +161,18 @@ An open-source, self-hosted, Docker-first AI customer-service and contact-center
 32. **Multilingual Auto-Detection & Cross-Lingual RAG (`LanguageRouter`)**:
     - Automatic detection of English (`en-US`), Spanish (`es-US`), French (`fr-FR`), German (`de-DE`), Portuguese (`pt-BR`), and Mandarin (`zh-CN`), dynamically selecting localized TwiML Polly / Kokoro-82M voices and expanding cross-lingual RAG queries.
 
+33. **In-Call PCI-DSS Payment Collection (`PaymentCollector`)**:
+    - Generates signed out-of-band checkout links (`send_payment_link` AI tool) and processes in-call DTMF keypad payments with immediate PAN masking (`****-****-****-4242`) stored in PostgreSQL `payment_transactions`.
+
+34. **Automated Post-Call & Post-Appointment CSAT Surveys (`SurveyEngine`)**:
+    - Dispatches 1–5 CSAT surveys across SMS, Voice, and Chat (`csat_surveys`), automatically triggering urgent supervisor recovery alerts when a customer responds with `1` or `2`.
+
+35. **AI Quality Assurance (QA) Auto-Grader & Prompt Regression Suite (`AiEvalRunner`)**:
+    - 6-scenario Golden QA & Red-Team benchmark suite testing RAG pricing accuracy, emergency synonym matching, prompt injection & prohibited refund blocking, human escalation, Spanish cross-lingual RAG, and live tool calling (`POST /api/v1/tenants/:tenantId/eval/run`).
+
+36. **Real-Time Server-Sent Events (SSE) Dashboard Stream & Self-Service Tenant Onboarding**:
+    - Live tenant-scoped pub/sub event stream (`RealtimeEventBus` at `GET /api/v1/tenants/:tenantId/events/stream`), 1-click multi-tenant organization switcher & creation (`POST /api/v1/tenants`), and Visual Embeddable Chat Widget Customizer (`/chat-widget`).
+
 ---
 
 ## Monorepo Architecture
@@ -224,7 +236,7 @@ The test suite runs against embedded WebAssembly PostgreSQL (`PGlite`) with zero
 ```bash
 npm test
 ```
-All 176 unit, integration, and security tests will execute and pass across 30 test suites.
+All 177 unit, integration, and security tests will execute and pass across 30 test suites.
 
 ### 4. Build Monorepo
 ```bash

@@ -11,6 +11,7 @@ export * from './conversation/types.js';
 export * from './conversation/state-machine.js';
 export * from './conversation/idempotency.js';
 export * from './conversation/manager.js';
+export * from './conversation/event-bus.js';
 
 export * from './ai/index.js';
 export * from './knowledge/index.js';

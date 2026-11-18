@@ -8,6 +8,10 @@ import {
   cosineSimilarity,
   ToolRegistry,
   WebhookSignatureVerifier,
+  PaymentCollector,
+  SurveyEngine,
+  AiEvalRunner,
+  RealtimeEventBus,
 } from '../index.js';
 
 describe('Appointments, Multilingual Auto-Detection & Hybrid Semantic RAG', () => {
@@ -159,5 +163,50 @@ describe('Appointments, Multilingual Auto-Detection & Hybrid Semantic RAG', () =
 
     const waSig = WebhookSignatureVerifier.computeWhatsAppSignature('meta_secret', '{"entry":[]}');
     expect(WebhookSignatureVerifier.verifyWhatsAppSignature('meta_secret', '{"entry":[]}', waSig)).toBe(true);
+  });
+
+  it('collects PCI-DSS payments (link + masked DTMF), dispatches CSAT surveys with low-score alerts, and runs Golden AI Eval Suite', async () => {
+    const collector = new PaymentCollector(db);
+    const linkPay = await collector.createPaymentLink({
+      tenantId: tenant1Id,
+      customerPhone: '+15550101',
+      description: 'Standard HVAC Diagnostic Fee',
+      amountCents: 8900,
+    });
+    expect(linkPay.checkoutUrl).toContain('/checkout/pay_');
+    expect(linkPay.status).toBe('pending');
+
+    const dtmfPay = await collector.processDtmfMaskedPayment({
+      tenantId: tenant1Id,
+      customerPhone: '+15550101',
+      description: 'Emergency Dispatch Deposit',
+      amountCents: 14900,
+      dtmfCardDigits: '4111111111114242',
+    });
+    expect(dtmfPay.maskedCardLast4).toBe('****-****-****-4242');
+    expect(dtmfPay.status).toBe('paid');
+
+    const surveyEngine = new SurveyEngine(db);
+    const { survey } = await surveyEngine.dispatchSurvey({
+      tenantId: tenant1Id,
+      customerPhone: '+15550101',
+      channel: 'sms',
+    });
+    const lowScoreRes = await surveyEngine.recordSurveyResponse({
+      tenantId: tenant1Id,
+      surveyId: survey.id,
+      score: 1,
+      feedbackText: 'Technician arrived late',
+    });
+    expect(lowScoreRes.supervisorAlerted).toBe(true);
+    expect(lowScoreRes.survey.status).toBe('escalated_low_score');
+
+    const evalRunner = new AiEvalRunner(db);
+    const evalReport = await evalRunner.runEvaluationSuite(tenant1Id);
+    expect(evalReport.overallScorePercent).toBe(100);
+    expect(evalReport.passedCount).toBe(6);
+
+    const published = RealtimeEventBus.publish(tenant1Id, 'call.started', { callSid: 'CA_SSE_1' });
+    expect(RealtimeEventBus.getRecentEvents(tenant1Id)[0].id).toBe(published.id);
   });
 });

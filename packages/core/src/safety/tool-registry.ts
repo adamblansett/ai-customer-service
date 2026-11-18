@@ -4,6 +4,7 @@ import * as schema from '@customer-service/db/schema';
 import type { DatabaseInstance } from '@customer-service/db';
 import { KnowledgeRetriever } from '../knowledge/retriever.js';
 import { AppointmentScheduler, APPOINTMENT_AI_TOOLS } from '../scheduling/appointments.js';
+import { PaymentCollector, PAYMENT_AI_TOOLS } from '../billing/payment-collector.js';
 import {
   ToolCategory,
   ToolExecutionContext,
@@ -17,10 +18,12 @@ import crypto from 'node:crypto';
 export class ToolRegistry {
   private retriever: KnowledgeRetriever;
   private scheduler: AppointmentScheduler;
+  private paymentCollector: PaymentCollector;
 
   constructor(private db: DatabaseInstance) {
     this.retriever = new KnowledgeRetriever(db);
     this.scheduler = new AppointmentScheduler(db);
+    this.paymentCollector = new PaymentCollector(db);
   }
 
   /**
@@ -102,6 +105,7 @@ export class ToolRegistry {
         },
       },
       ...APPOINTMENT_AI_TOOLS,
+      ...PAYMENT_AI_TOOLS,
     ];
   }
 
@@ -339,6 +343,26 @@ export class ToolRegistry {
           result = {
             success: true,
             data: { appointment },
+          };
+          break;
+        }
+
+        case 'send_payment_link': {
+          const validator = z.object({
+            customerPhone: z.string().min(4),
+            description: z.string().min(1),
+            amountCents: z.number().int().positive(),
+          });
+          const parsed = validator.parse(args);
+          const payment = await this.paymentCollector.createPaymentLink({
+            tenantId: context.tenantId,
+            customerId: context.customerId,
+            conversationId: context.conversationId,
+            ...parsed,
+          });
+          result = {
+            success: true,
+            data: { payment },
           };
           break;
         }

@@ -285,6 +285,38 @@ export async function initializeSchemaInPglite(pglite: PGlite): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS payment_transactions (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      customer_id TEXT,
+      conversation_id TEXT,
+      customer_phone TEXT NOT NULL,
+      description TEXT NOT NULL,
+      amount_cents INTEGER NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'USD',
+      payment_method TEXT NOT NULL DEFAULT 'payment_link',
+      masked_card_last4 TEXT,
+      checkout_url TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      paid_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS csat_surveys (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      conversation_id TEXT,
+      appointment_id TEXT,
+      customer_phone TEXT NOT NULL,
+      channel TEXT NOT NULL DEFAULT 'sms',
+      score INTEGER,
+      feedback_text TEXT,
+      status TEXT NOT NULL DEFAULT 'sent',
+      supervisor_alerted BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      responded_at TIMESTAMPTZ
+    );
   `);
 }
 

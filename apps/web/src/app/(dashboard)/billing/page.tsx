@@ -327,6 +327,24 @@ export default function BillingPage() {
           </div>
         </div>
       </div>
+
+      {/* PCI-DSS In-Call Payment Link & Masked DTMF Collection */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Shield className="w-5 h-5 text-emerald-600" />
+            <h2 className="text-base font-bold text-slate-900">
+              PCI-DSS Customer Payment Collection (Checkout Links & Masked DTMF)
+            </h2>
+          </div>
+          <span className="text-xs font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+            AI Tool: send_payment_link
+          </span>
+        </div>
+        <p className="text-xs text-slate-600">
+          Voice and Chat agents can automatically dispatch signed checkout links for diagnostic fees (\$89.00) or capture keypad DTMF digits with immediate PAN redaction (<code className="font-mono">****-****-****-4242</code>) so raw card numbers never touch logs or LLM context.
+        </p>
+      </div>
     </div>
   );
 }

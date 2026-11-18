@@ -719,6 +719,46 @@ describe('API Server Integration & Security Suite', () => {
         .set('X-Plivo-Signature-V2', 'forged_invalid_signature')
         .send({ CallUUID: 'PL_FORGED_1', From: '+15550199', To: '+18005550100' });
       expect(forgedWebhook.status).toBe(401);
+
+      // 6. PCI-DSS Payments, CSAT Surveys, AI QA Auto-Grader, SSE Event Bus, and Self-Service Tenant Onboarding
+      const payRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/payments/dtmf`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({
+          customerPhone: '+15550101',
+          description: 'Diagnostic Fee',
+          amountCents: 8900,
+          dtmfCardDigits: '4242424242429876',
+        });
+      expect(payRes.status).toBe(201);
+      expect(payRes.body.payment.maskedCardLast4).toBe('****-****-****-9876');
+
+      const surveyRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/surveys/dispatch`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({ customerPhone: '+15550101', channel: 'sms' });
+      expect(surveyRes.status).toBe(201);
+
+      const respondRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/surveys/${surveyRes.body.survey.id}/respond`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({ score: 2, feedbackText: 'Long wait time' });
+      expect(respondRes.status).toBe(200);
+      expect(respondRes.body.supervisorAlerted).toBe(true);
+
+      const evalRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/eval/run`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({});
+      expect(evalRes.status).toBe(200);
+      expect(evalRes.body.overallScorePercent).toBe(100);
+
+      const newTenantRes = await request(app)
+        .post('/api/v1/tenants')
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({ name: 'Pacific Plumbing & Solar' });
+      expect(newTenantRes.status).toBe(201);
+      expect(newTenantRes.body.tenant.name).toBe('Pacific Plumbing & Solar');
     });
   });
 });

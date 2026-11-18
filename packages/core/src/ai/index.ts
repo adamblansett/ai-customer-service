@@ -9,3 +9,4 @@ export * from './vllm-provider.js';
 export * from './provider-factory.js';
 export * from './orchestrator.js';
 export * from './builtin-resolver.js';
+export * from './eval-runner.js';

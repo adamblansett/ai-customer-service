@@ -331,3 +331,45 @@ export const appointments = pgTable('appointments', {
   index('appointments_tenant_idx').on(table.tenantId),
   index('appointments_schedule_idx').on(table.tenantId, table.scheduledStart),
 ]);
+
+// -------------------------------------------------------------
+// 18. PCI-DSS Masked Payment Transactions Table
+// -------------------------------------------------------------
+export const paymentTransactions = pgTable('payment_transactions', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  customerId: text('customer_id'),
+  conversationId: text('conversation_id'),
+  customerPhone: text('customer_phone').notNull(),
+  description: text('description').notNull(),
+  amountCents: integer('amount_cents').notNull(),
+  currency: text('currency').notNull().default('USD'),
+  paymentMethod: text('payment_method').notNull().default('payment_link'), // 'payment_link', 'dtmf_masked'
+  maskedCardLast4: text('masked_card_last4'),
+  checkoutUrl: text('checkout_url'),
+  status: text('status').notNull().default('pending'), // 'pending', 'paid', 'failed'
+  paidAt: timestamp('paid_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('payments_tenant_idx').on(table.tenantId),
+]);
+
+// -------------------------------------------------------------
+// 19. Automated CSAT Surveys Table
+// -------------------------------------------------------------
+export const csatSurveys = pgTable('csat_surveys', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  conversationId: text('conversation_id'),
+  appointmentId: text('appointment_id'),
+  customerPhone: text('customer_phone').notNull(),
+  channel: text('channel').notNull().default('sms'), // 'sms', 'voice', 'chat'
+  score: integer('score'), // 1 to 5
+  feedbackText: text('feedback_text'),
+  status: text('status').notNull().default('sent'), // 'sent', 'completed', 'escalated_low_score'
+  supervisorAlerted: boolean('supervisor_alerted').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  respondedAt: timestamp('responded_at', { withTimezone: true }),
+}, (table) => [
+  index('surveys_tenant_idx').on(table.tenantId),
+]);

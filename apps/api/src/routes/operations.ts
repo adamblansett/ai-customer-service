@@ -13,6 +13,10 @@ import {
   APPOINTMENT_AI_TOOLS,
   LanguageRouter,
   KnowledgeRetriever,
+  PaymentCollector,
+  SurveyEngine,
+  AiEvalRunner,
+  RealtimeEventBus,
 } from '@customer-service/core';
 
 const globalQueueManager = new CallQueueManager();
@@ -76,6 +80,9 @@ export function createOperationsRouter(db: DatabaseInstance): Router {
   const scheduler = new AppointmentScheduler(db);
   const languageRouter = new LanguageRouter();
   const retriever = new KnowledgeRetriever(db);
+  const paymentCollector = new PaymentCollector(db);
+  const surveyEngine = new SurveyEngine(db);
+  const evalRunner = new AiEvalRunner(db);
 
   // ============================================================================
   // 1. Contact Center Queues & ACD Wallboard Endpoints
@@ -454,6 +461,187 @@ export function createOperationsRouter(db: DatabaseInstance): Router {
         profile,
         knowledgeHits,
         supportedLocales: languageRouter.listSupportedLocales(),
+      });
+    }
+  );
+
+  // ============================================================================
+  // 6. PCI-DSS Payment Links & Masked DTMF Card Collection Endpoints
+  // ============================================================================
+  router.get(
+    '/:tenantId/payments',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      const payments = await paymentCollector.listPayments(tenantId);
+      res.json({ payments });
+    }
+  );
+
+  router.post(
+    '/:tenantId/payments/link',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      try {
+        const payment = await paymentCollector.createPaymentLink({
+          tenantId,
+          ...req.body,
+        });
+        RealtimeEventBus.publish(tenantId, 'payment.completed', {
+          paymentId: payment.id,
+          amountCents: payment.amountCents,
+          status: payment.status,
+        });
+        res.status(201).json({ payment });
+      } catch (err: any) {
+        res.status(400).json({ error: err.message });
+      }
+    }
+  );
+
+  router.post(
+    '/:tenantId/payments/dtmf',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      try {
+        const payment = await paymentCollector.processDtmfMaskedPayment({
+          tenantId,
+          ...req.body,
+        });
+        RealtimeEventBus.publish(tenantId, 'payment.completed', {
+          paymentId: payment.id,
+          maskedCardLast4: payment.maskedCardLast4,
+          status: payment.status,
+        });
+        res.status(201).json({ payment });
+      } catch (err: any) {
+        res.status(400).json({ error: err.message });
+      }
+    }
+  );
+
+  // ============================================================================
+  // 7. Automated Post-Call & Post-Appointment CSAT Surveys Endpoints
+  // ============================================================================
+  router.get(
+    '/:tenantId/surveys',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      const result = await surveyEngine.listSurveys(tenantId);
+      res.json(result);
+    }
+  );
+
+  router.post(
+    '/:tenantId/surveys/dispatch',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      const dispatched = await surveyEngine.dispatchSurvey({
+        tenantId,
+        ...req.body,
+      });
+      res.status(201).json(dispatched);
+    }
+  );
+
+  router.post(
+    '/:tenantId/surveys/:surveyId/respond',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId, surveyId } = req.params;
+      const { score, feedbackText } = req.body;
+      try {
+        const result = await surveyEngine.recordSurveyResponse({
+          tenantId,
+          surveyId,
+          score: Number(score),
+          feedbackText,
+        });
+        if (result.supervisorAlerted) {
+          RealtimeEventBus.publish(tenantId, 'supervisor.alert', {
+            reason: result.recoveryAction,
+            surveyId,
+            score,
+          });
+        }
+        res.json(result);
+      } catch (err: any) {
+        res.status(400).json({ error: err.message });
+      }
+    }
+  );
+
+  // ============================================================================
+  // 8. AI Quality Assurance (QA) Auto-Grader & Prompt Regression Runner
+  // ============================================================================
+  router.post(
+    '/:tenantId/eval/run',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      const report = await evalRunner.runEvaluationSuite(tenantId);
+      res.json(report);
+    }
+  );
+
+  // ============================================================================
+  // 9. Server-Sent Events (SSE) Live Dashboard Push & Event Bus
+  // ============================================================================
+  router.get(
+    '/:tenantId/events/recent',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      res.json({ events: RealtimeEventBus.getRecentEvents(tenantId) });
+    }
+  );
+
+  router.post(
+    '/:tenantId/events/publish',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      const { type = 'call.updated', payload = {} } = req.body;
+      const evt = RealtimeEventBus.publish(tenantId, type, payload);
+      res.status(201).json({ event: evt });
+    }
+  );
+
+  router.get(
+    '/:tenantId/events/stream',
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
+      const initialEvent = {
+        id: 'evt_connected',
+        tenantId,
+        type: 'stream.connected',
+        timestamp: new Date().toISOString(),
+      };
+      res.write(`data: ${JSON.stringify(initialEvent)}\n\n`);
+
+      const unsubscribe = RealtimeEventBus.subscribe(tenantId, (event) => {
+        res.write(`data: ${JSON.stringify(event)}\n\n`);
+      });
+
+      req.on('close', () => {
+        unsubscribe();
       });
     }
   );

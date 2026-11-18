@@ -9,6 +9,80 @@ import bcrypt from 'bcryptjs';
 export function createTenantsRouter(db: DatabaseInstance): Router {
   const router = Router();
 
+  // GET /api/v1/tenants - List tenants the authenticated user belongs to
+  router.get('/', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+    const userId = req.user!.userId;
+    const rows = await db
+      .select({
+        id: schema.tenants.id,
+        name: schema.tenants.name,
+        slug: schema.tenants.slug,
+        status: schema.tenants.status,
+        role: schema.tenantMemberships.role,
+      })
+      .from(schema.tenantMemberships)
+      .innerJoin(schema.tenants, eq(schema.tenantMemberships.tenantId, schema.tenants.id))
+      .where(eq(schema.tenantMemberships.userId, userId));
+
+    res.json({ tenants: rows });
+  });
+
+  // POST /api/v1/tenants - Self-service create new Business Tenant with default settings & Owner membership
+  router.post('/', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+    const userId = req.user!.userId;
+    const { name, slug, timezone = 'America/New_York', fallbackPhone } = req.body;
+
+    if (!name) {
+      res.status(400).json({ error: 'Tenant name is required.' });
+      return;
+    }
+
+    const cleanSlug =
+      (slug || name)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '') +
+      '-' +
+      Math.random().toString(36).slice(2, 6);
+
+    const tenantId = `tenant_${crypto.randomUUID()}`;
+
+    const [createdTenant] = await db
+      .insert(schema.tenants)
+      .values({
+        id: tenantId,
+        name,
+        slug: cleanSlug,
+        status: 'active',
+      })
+      .returning();
+
+    await db.insert(schema.tenantMemberships).values({
+      id: `mem_${crypto.randomUUID()}`,
+      tenantId,
+      userId,
+      role: 'owner',
+    });
+
+    const [settings] = await db
+      .insert(schema.businessSettings)
+      .values({
+        id: `settings_${crypto.randomUUID()}`,
+        tenantId,
+        businessName: name,
+        timezone,
+        fallbackPhone: fallbackPhone || '+18005550199',
+        aiGreeting: `Thank you for calling ${name}. I am an automated AI assistant. How can I help you today?`,
+      })
+      .returning();
+
+    res.status(201).json({
+      tenant: createdTenant,
+      settings,
+      role: 'owner',
+    });
+  });
+
   // GET /api/v1/tenants/:tenantId/overview - Real metrics computed live
   router.get(
     '/:tenantId/overview',
