@@ -25,6 +25,10 @@ import {
   DatasetExporter,
   KnowledgeGovernance,
   type FineTuningFormat,
+  FollowUpComposer,
+  ExperimentEngine,
+  AudioRedactor,
+  AgentScorecardService,
 } from '@customer-service/core';
 
 const globalQueueManager = new CallQueueManager();
@@ -98,6 +102,10 @@ export function createOperationsRouter(db: DatabaseInstance): Router {
   const incidentDispatcher = new IncidentDispatcher();
   const datasetExporter = new DatasetExporter(db);
   const knowledgeGovernance = new KnowledgeGovernance(db);
+  const followUpComposer = new FollowUpComposer(db);
+  const experimentEngine = new ExperimentEngine(db);
+  const audioRedactor = new AudioRedactor();
+  const scorecardService = new AgentScorecardService();
 
   // ============================================================================
   // 1. Contact Center Queues & ACD Wallboard Endpoints
@@ -875,6 +883,101 @@ export function createOperationsRouter(db: DatabaseInstance): Router {
       } catch (err: any) {
         res.status(404).json({ error: err.message });
       }
+    }
+  );
+
+  // ============================================================================
+  // 17. Post-Call SMS & Email Follow-Up Recap Generator
+  // ============================================================================
+  router.post(
+    '/:tenantId/calls/:callSid/followup',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId, callSid } = req.params;
+      const recap = await followUpComposer.composeFollowUp({
+        tenantId,
+        callSid,
+        callerPhone: req.body.callerPhone || '+15550101',
+        conversationId: req.body.conversationId,
+        businessName: req.body.businessName,
+      });
+      res.json({ recap });
+    }
+  );
+
+  // ============================================================================
+  // 18. A/B Prompt & Voice Persona Experimentation Engine
+  // ============================================================================
+  router.get(
+    '/:tenantId/experiments',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      const experiments = await experimentEngine.listExperiments(tenantId);
+      res.json({ experiments });
+    }
+  );
+
+  router.post(
+    '/:tenantId/experiments',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      const experiment = await experimentEngine.createExperiment({
+        tenantId,
+        ...req.body,
+      });
+      res.status(201).json({ experiment });
+    }
+  );
+
+  router.post(
+    '/:tenantId/experiments/:experimentId/outcome',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId, experimentId } = req.params;
+      const { variant = 'A', csatScore = 5, resolved = true } = req.body;
+      const experiment = await experimentEngine.recordOutcome(
+        tenantId,
+        experimentId,
+        variant,
+        { csatScore: Number(csatScore), resolved: Boolean(resolved) }
+      );
+      res.json({ experiment });
+    }
+  );
+
+  // ============================================================================
+  // 19. Real-Time PCI/HIPAA Call Audio Scrubber
+  // ============================================================================
+  router.post(
+    '/:tenantId/security/scrub-audio',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin']),
+    async (req: Request, res: Response): Promise<void> => {
+      const result = audioRedactor.scrubAudioWithWordTimestamps({
+        audioBase64: req.body.audioBase64 || Buffer.alloc(1600, 0x55).toString('base64'),
+        sampleRateHz: req.body.sampleRateHz,
+        words: req.body.words || [],
+      });
+      res.json(result);
+    }
+  );
+
+  // ============================================================================
+  // 20. Agent Gamification, QA Scorecards & Coaching Leaderboard
+  // ============================================================================
+  router.get(
+    '/:tenantId/workforce/leaderboard',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      res.json({ leaderboard: scorecardService.getTenantLeaderboard(tenantId) });
     }
   );
 

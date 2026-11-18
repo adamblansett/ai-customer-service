@@ -1,0 +1,45 @@
+{
+  "title": "AI Customer Service & Contact Center Observability",
+  "uid": "ai-contact-center-v1",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "HTTP Request Throughput by Route",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (route, status) (rate(ai_cs_http_requests_total[5m]))",
+          "legendFormat": "{{route}} ({{status}})"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
+    },
+    {
+      "id": 2,
+      "title": "Average API & Webhook Latency (ms)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "rate(ai_cs_http_request_duration_ms_sum[5m]) / clamp_min(rate(ai_cs_http_request_duration_ms_count[5m]), 1)",
+          "legendFormat": "Avg Latency (ms)"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+    },
+    {
+      "id": 3,
+      "title": "Built-In Open-Weights AI & Speech Engine Status",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "ai_cs_builtin_open_weights_info",
+          "legendFormat": "{{default_llm}} | {{default_stt}} | {{default_tts}}"
+        }
+      ],
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 8 }
+    }
+  ]
+}

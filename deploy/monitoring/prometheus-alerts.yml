@@ -1,0 +1,20 @@
+groups:
+  - name: ai_customer_service_contact_center
+    rules:
+      - alert: HighApiServerErrorRate
+        expr: sum(rate(ai_cs_http_requests_total{status=~"5.."}[5m])) / clamp_min(sum(rate(ai_cs_http_requests_total[5m])), 1) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "AI Contact Center API 5xx rate above 5%"
+          description: "Elevated 5xx error rate on REST or telephony webhook endpoints."
+
+      - alert: ElevatedWebhookLatency
+        expr: (rate(ai_cs_http_request_duration_ms_sum[5m]) / clamp_min(rate(ai_cs_http_request_duration_ms_count[5m]), 1)) > 1500
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Telephony webhook average latency > 1500ms"
+          description: "Carrier TwiML/Telnyx/Plivo response time exceeds conversational voice threshold."

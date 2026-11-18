@@ -354,6 +354,26 @@ export async function initializeSchemaInPglite(pglite: PGlite): Promise<void> {
       created_by TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS ab_experiments (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      variant_a_model TEXT NOT NULL DEFAULT 'qwen2.5:7b-instruct',
+      variant_a_voice TEXT NOT NULL DEFAULT 'af_heart',
+      variant_a_prompt TEXT NOT NULL,
+      variant_b_model TEXT NOT NULL DEFAULT 'llama3.1:8b',
+      variant_b_voice TEXT NOT NULL DEFAULT 'af_bella',
+      variant_b_prompt TEXT NOT NULL,
+      variant_a_calls INTEGER NOT NULL DEFAULT 0,
+      variant_b_calls INTEGER NOT NULL DEFAULT 0,
+      variant_a_csat_sum INTEGER NOT NULL DEFAULT 0,
+      variant_b_csat_sum INTEGER NOT NULL DEFAULT 0,
+      variant_a_resolved INTEGER NOT NULL DEFAULT 0,
+      variant_b_resolved INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'running',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
   `);
 }
 

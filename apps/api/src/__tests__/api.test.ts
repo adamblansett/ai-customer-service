@@ -808,6 +808,39 @@ describe('API Server Integration & Security Suite', () => {
         });
       expect(incRes.status).toBe(200);
       expect(incRes.body.channelsNotified).toContain('pagerduty');
+
+      // 9. Post-Call Follow-Up, A/B Experimentation, Audio Redactor & Agent QA Leaderboard
+      const followRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/calls/CA_FOLLOW_999/followup`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({ callerPhone: '+15550101' });
+      expect(followRes.status).toBe(200);
+      expect(followRes.body.recap.referenceNumber).toContain('REF-');
+
+      const expRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/experiments`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({
+          name: 'Voice Cadence Split',
+          variantAPrompt: 'Prompt A',
+          variantBPrompt: 'Prompt B',
+        });
+      expect(expRes.status).toBe(201);
+
+      const scrubRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/security/scrub-audio`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({
+          words: [{ word: '4111', startMs: 10, endMs: 60 }],
+        });
+      expect(scrubRes.status).toBe(200);
+      expect(scrubRes.body.pciCompliant).toBe(true);
+
+      const lbRes = await request(app)
+        .get(`/api/v1/tenants/${tenant1Id}/workforce/leaderboard`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`);
+      expect(lbRes.status).toBe(200);
+      expect(lbRes.body.leaderboard).toHaveLength(3);
     });
   });
 });

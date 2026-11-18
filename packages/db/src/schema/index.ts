@@ -425,3 +425,28 @@ export const knowledgeDocumentVersions = pgTable('knowledge_document_versions', 
 }, (table) => [
   index('kb_versions_doc_idx').on(table.tenantId, table.documentId),
 ]);
+
+// -------------------------------------------------------------
+// 23. A/B Prompt & Voice Persona Experiments Table
+// -------------------------------------------------------------
+export const abExperiments = pgTable('ab_experiments', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  variantAModel: text('variant_a_model').notNull().default('qwen2.5:7b-instruct'),
+  variantAVoice: text('variant_a_voice').notNull().default('af_heart'),
+  variantAPrompt: text('variant_a_prompt').notNull(),
+  variantBModel: text('variant_b_model').notNull().default('llama3.1:8b'),
+  variantBVoice: text('variant_b_voice').notNull().default('af_bella'),
+  variantBPrompt: text('variant_b_prompt').notNull(),
+  variantACalls: integer('variant_a_calls').notNull().default(0),
+  variantBCalls: integer('variant_b_calls').notNull().default(0),
+  variantACsatSum: integer('variant_a_csat_sum').notNull().default(0),
+  variantBCsatSum: integer('variant_b_csat_sum').notNull().default(0),
+  variantAResolved: integer('variant_a_resolved').notNull().default(0),
+  variantBResolved: integer('variant_b_resolved').notNull().default(0),
+  status: text('status').notNull().default('running'), // 'running', 'completed'
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('ab_experiments_tenant_idx').on(table.tenantId),
+]);

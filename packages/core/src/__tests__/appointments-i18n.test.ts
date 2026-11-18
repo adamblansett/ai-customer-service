@@ -20,6 +20,10 @@ import {
   IncidentDispatcher,
   DatasetExporter,
   KnowledgeGovernance,
+  FollowUpComposer,
+  ExperimentEngine,
+  AudioRedactor,
+  AgentScorecardService,
 } from '../index.js';
 
 describe('Appointments, Multilingual Auto-Detection & Hybrid Semantic RAG', () => {
@@ -307,5 +311,45 @@ describe('Appointments, Multilingual Auto-Detection & Hybrid Semantic RAG', () =
     );
     expect(rolledBack.restoredVersion).toBe(v1.versionNumber);
     expect(rolledBack.document.rawContent).toContain('Original Hours');
+
+    // 9. Post-Call Follow-Up Composer, A/B Experiment Engine, Audio Redactor & Agent Scorecards
+    const followUp = new FollowUpComposer(db);
+    const recap = await followUp.composeFollowUp({
+      tenantId: tenant1Id,
+      callSid: 'CA9876543210',
+      callerPhone: '+15550101',
+    });
+    expect(recap.referenceNumber).toBe('REF-543210');
+    expect(recap.smsBody).toContain('Acme Heating & Cooling');
+
+    const expEngine = new ExperimentEngine(db);
+    const exp = await expEngine.createExperiment({
+      tenantId: tenant1Id,
+      name: 'Qwen 7B vs Llama 8B Greeting Test',
+      variantAPrompt: 'Concise greeting',
+      variantBPrompt: 'Empathetic greeting',
+    });
+    await expEngine.recordOutcome(tenant1Id, exp.id, 'A', { csatScore: 5, resolved: true });
+    const updatedExp = await expEngine.recordOutcome(tenant1Id, exp.id, 'B', {
+      csatScore: 4,
+      resolved: true,
+    });
+    expect(updatedExp.metrics.winningVariant).toBe('A');
+
+    const redactor = new AudioRedactor();
+    const rawBuf = Buffer.alloc(800, 0x11).toString('base64'); // 100ms at 8kHz
+    const scrubbed = redactor.scrubAudioWithWordTimestamps({
+      audioBase64: rawBuf,
+      sampleRateHz: 8000,
+      words: [
+        { word: 'card', startMs: 0, endMs: 20 },
+        { word: '4242', startMs: 20, endMs: 80 },
+      ],
+    });
+    expect(scrubbed.piiWordsRedactedCount).toBe(1);
+    expect(scrubbed.pciCompliant).toBe(true);
+
+    const scorecards = new AgentScorecardService().getTenantLeaderboard(tenant1Id);
+    expect(scorecards[0].rank).toBe(1);
   });
 });

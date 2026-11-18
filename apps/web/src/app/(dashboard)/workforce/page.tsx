@@ -333,6 +333,49 @@ export default function WorkforcePage() {
           )}
         </div>
       </div>
+
+      {/* Agent QA Scorecard Leaderboard & A/B Voice Persona Experimentation */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+          <h2 className="text-base font-bold text-slate-900">
+            Agent QA Scorecards & Coaching Leaderboard
+          </h2>
+          <div className="divide-y divide-slate-200 text-xs">
+            {[
+              { rank: 1, name: 'Sarah Agent', qa: 97, csat: '4.9', badge: 'Top CSAT Star' },
+              { rank: 2, name: 'Elena Rostova', qa: 94, csat: '4.8', badge: 'Bilingual Champion' },
+              { rank: 3, name: 'Marcus Vance', qa: 91, csat: '4.7', badge: 'Senior HVAC Specialist' },
+            ].map((row) => (
+              <div key={row.rank} className="py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 font-bold flex items-center justify-center">
+                    #{row.rank}
+                  </span>
+                  <span className="font-bold text-slate-900">{row.name}</span>
+                  <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-medium text-[10px]">
+                    {row.badge}
+                  </span>
+                </div>
+                <span className="font-mono font-semibold text-slate-700">
+                  QA {row.qa}% • CSAT {row.csat}/5
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-slate-900 text-white p-6 rounded-xl border border-slate-800 shadow-sm space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-bold">A/B Voice & Open-Weights Experimentation</h2>
+            <span className="text-[11px] font-mono bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full">
+              50/50 Traffic Split
+            </span>
+          </div>
+          <p className="text-xs text-slate-400">
+            Compare <strong>Variant A</strong> (<code className="text-sky-300">qwen2.5:7b-instruct + af_heart</code>) vs <strong>Variant B</strong> (<code className="text-emerald-300">llama3.1:8b + af_bella</code>) across live CSAT & first-contact resolution rate, with automatic PCI/HIPAA μ-law audio scrubbing (<code className="text-amber-300">0xFF</code> silence fill).
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

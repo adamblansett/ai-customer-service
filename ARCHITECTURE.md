@@ -83,7 +83,7 @@ stateDiagram-v2
 ## 3. Core Component Responsibilities
 
 ### 1. `packages/db` (Data Layer)
-- **Schema Management**: Typed Drizzle ORM definitions for 22 multi-tenant tables (including `call_flows`, `dnc_entries`, `voiceprints`, `appointments`, `payment_transactions`, `csat_surveys`, `agent_shifts`, `webhook_subscriptions`, and `knowledge_document_versions`, plus `embedding_json` on `knowledge_chunks`).
+- **Schema Management**: Typed Drizzle ORM definitions for 23 multi-tenant tables (including `call_flows`, `dnc_entries`, `voiceprints`, `appointments`, `payment_transactions`, `csat_surveys`, `agent_shifts`, `webhook_subscriptions`, `knowledge_document_versions`, and `ab_experiments`, plus `embedding_json` on `knowledge_chunks`).
 - **Cascade Deletion**: All tenant-scoped entities feature `ON DELETE CASCADE` referencing `tenants.id`.
 - **Database Engine Abstraction**: Supports production PostgreSQL 16 via `node-postgres` (`pg`) and offline in-memory testing via WebAssembly `@electric-sql/pglite`.
 

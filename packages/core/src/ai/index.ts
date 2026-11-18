@@ -12,3 +12,4 @@ export * from './builtin-resolver.js';
 export * from './eval-runner.js';
 export * from './visual-diagnostics.js';
 export * from './dataset-exporter.js';
+export * from './experiment-engine.js';

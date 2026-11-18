@@ -200,6 +200,18 @@ An open-source, self-hosted, Docker-first AI customer-service and contact-center
 45. **Synchronized Call Audio Waveform & Sentiment Turn Inspector (`/calls`)**:
     - Dual-channel visual waveform player with turn-by-turn sentiment markers and executed AI tool badges (`lookup_knowledge`, `book_appointment`).
 
+46. **Automated Post-Call Follow-Up SMS & Email Recap Composer (`FollowUpComposer`)**:
+    - Composes PII-redacted call recaps containing call reference numbers, confirmed technician appointment windows, and 1-click reschedule/CSAT URLs (`POST /api/v1/tenants/:tenantId/calls/:callSid/followup`).
+
+47. **A/B Prompt & Voice Persona Experimentation Engine (`ExperimentEngine`)**:
+    - Deterministic 50/50 split-traffic experimentation (`ab_experiments` table) comparing open-weights models and Kokoro/Polly voices across CSAT and resolution rates.
+
+48. **Real-Time PCI/HIPAA Call Audio Scrubber (`AudioRedactor`)**:
+    - Overwrites spoken credit card digits, SSNs, and CVV segments in 8kHz G.711 μ-law recordings with `0xFF` digital silence using word-level STT timestamps (`POST /api/v1/tenants/:tenantId/security/scrub-audio`).
+
+49. **Agent QA Scorecards, Leaderboards & Grafana / Prometheus Bundle (`AgentScorecardService` & `deploy/monitoring/`)**:
+    - Per-agent QA scorecards & coaching leaderboards (`/workforce`) plus ready-to-import `deploy/monitoring/grafana-dashboard.json` and `deploy/monitoring/prometheus-alerts.yml`.
+
 ---
 
 ## Monorepo Architecture
