@@ -12,6 +12,10 @@ import {
   SurveyEngine,
   AiEvalRunner,
   RealtimeEventBus,
+  VisualDiagnosticsEngine,
+  WorkforceManager,
+  AmdDetector,
+  TenantWebhookRegistry,
 } from '../index.js';
 
 describe('Appointments, Multilingual Auto-Detection & Hybrid Semantic RAG', () => {
@@ -208,5 +212,51 @@ describe('Appointments, Multilingual Auto-Detection & Hybrid Semantic RAG', () =
 
     const published = RealtimeEventBus.publish(tenant1Id, 'call.started', { callSid: 'CA_SSE_1' });
     expect(RealtimeEventBus.getRecentEvents(tenant1Id)[0].id).toBe(published.id);
+
+    // 7. Visual Diagnostics, Erlang-C WFM, AMD Voicemail Drop, and Outbound Webhooks
+    const vision = new VisualDiagnosticsEngine(db);
+    const diag = await vision.analyzeEquipmentImage({
+      tenantId: tenant1Id,
+      imageUrlOrBase64: 'upload://furnace_e1.jpg',
+      customerNotes: 'Thermostat blinking E1 ignition lockout in freezing weather',
+    });
+    expect(diag.detectedFaultCode).toBe('ERR_E1_IGNITION_LOCKOUT');
+    expect(diag.urgency).toBe('emergency');
+    expect(diag.knowledgeRecommendations.length).toBeGreaterThan(0);
+
+    const wfm = new WorkforceManager(db);
+    const forecast = wfm.calculateErlangCStaffing({
+      callsPerHour: 120,
+      averageHandleTimeSeconds: 180,
+      targetAnswerSeconds: 20,
+      targetSlaPercent: 80,
+    });
+    expect(forecast.trafficErlangs).toBe(6);
+    expect(forecast.recommendedAgents).toBeGreaterThan(6);
+    expect(forecast.expectedSlaPercent).toBeGreaterThanOrEqual(80);
+
+    const amd = new AmdDetector();
+    const vmDecision = amd.classifyCallAnswer({
+      greetingDurationMs: 3800,
+      beepDetected: true,
+      transcript: 'Please leave a message after the beep',
+      customerName: 'John Doe',
+    });
+    expect(vmDecision.classification).toBe('machine_detected_beep');
+    expect(vmDecision.action).toBe('drop_voicemail_and_sms');
+    expect(vmDecision.triggerSmsFollowUp).toBe(true);
+
+    const whRegistry = new TenantWebhookRegistry(db);
+    await whRegistry.createSubscription({
+      tenantId: tenant1Id,
+      targetUrl: 'https://hooks.zapier.example.com/acme',
+      events: ['appointment.booked'],
+    });
+    const receipts = await whRegistry.dispatchEvent(tenant1Id, 'appointment.booked', {
+      appointmentId: 'appt_123',
+    });
+    expect(receipts).toHaveLength(1);
+    expect(receipts[0].delivered).toBe(true);
+    expect(receipts[0].signatureHeader).toMatch(/^sha256=/);
   });
 });

@@ -10,3 +10,4 @@ export * from './provider-factory.js';
 export * from './orchestrator.js';
 export * from './builtin-resolver.js';
 export * from './eval-runner.js';
+export * from './visual-diagnostics.js';

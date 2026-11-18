@@ -759,6 +759,31 @@ describe('API Server Integration & Security Suite', () => {
         .send({ name: 'Pacific Plumbing & Solar' });
       expect(newTenantRes.status).toBe(201);
       expect(newTenantRes.body.tenant.name).toBe('Pacific Plumbing & Solar');
+
+      // 7. Vision Diagnostics, WFM Erlang-C Forecast, AMD Voicemail Drop & Outbound Webhooks
+      const visionRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/diagnostics/vision`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({
+          imageUrlOrBase64: 'upload://ac_coil_f2.jpg',
+          customerNotes: 'AC coil frozen with F2 refrigerant code',
+        });
+      expect(visionRes.status).toBe(200);
+      expect(visionRes.body.diagnosis.detectedFaultCode).toBe('ERR_F2_EVAPORATOR_FREEZE');
+
+      const wfmRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/workforce/forecast`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({ callsPerHour: 100, averageHandleTimeSeconds: 180 });
+      expect(wfmRes.status).toBe(200);
+      expect(wfmRes.body.forecast.recommendedAgents).toBeGreaterThan(5);
+
+      const amdRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/voice/amd`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({ greetingDurationMs: 650, wordCount: 2, transcript: 'Hello?' });
+      expect(amdRes.status).toBe(200);
+      expect(amdRes.body.decision.classification).toBe('human_answered');
     });
   });
 });

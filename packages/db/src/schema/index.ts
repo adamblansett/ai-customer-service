@@ -373,3 +373,38 @@ export const csatSurveys = pgTable('csat_surveys', {
 }, (table) => [
   index('surveys_tenant_idx').on(table.tenantId),
 ]);
+
+// -------------------------------------------------------------
+// 20. Workforce Management (WFM) Agent Shifts Table
+// -------------------------------------------------------------
+export const agentShifts = pgTable('agent_shifts', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  agentId: text('agent_id').notNull(),
+  agentName: text('agent_name').notNull(),
+  shiftDate: text('shift_date').notNull(), // YYYY-MM-DD
+  startHour: integer('start_hour').notNull(), // 0..23
+  endHour: integer('end_hour').notNull(), // 1..24
+  roleSkill: text('role_skill').notNull().default('general-inquiry'),
+  status: text('status').notNull().default('scheduled'), // 'scheduled', 'active', 'completed'
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('shifts_tenant_idx').on(table.tenantId),
+]);
+
+// -------------------------------------------------------------
+// 21. Tenant Outbound Webhook Subscriptions Table
+// -------------------------------------------------------------
+export const webhookSubscriptions = pgTable('webhook_subscriptions', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  targetUrl: text('target_url').notNull(),
+  signingSecret: text('signing_secret').notNull(),
+  events: jsonb('events').notNull().default([]), // e.g. ['call.completed', 'appointment.booked', 'payment.completed']
+  isActive: boolean('is_active').notNull().default(true),
+  deliveryCount: integer('delivery_count').notNull().default(0),
+  lastStatusCode: integer('last_status_code'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('webhook_subs_tenant_idx').on(table.tenantId),
+]);

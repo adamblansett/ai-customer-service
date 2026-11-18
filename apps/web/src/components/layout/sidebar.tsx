@@ -20,12 +20,14 @@ import {
   Contact,
   CalendarCheck,
   Megaphone,
+  Calculator,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
   { href: '/overview', label: 'Overview', icon: LayoutDashboard },
   { href: '/conversations', label: 'Live Conversations', icon: MessagesSquare },
   { href: '/queues', label: 'Queues & ACD', icon: Users },
+  { href: '/workforce', label: 'Workforce & WFM', icon: Calculator },
   { href: '/appointments', label: 'Appointments & Dispatch', icon: CalendarCheck },
   { href: '/campaigns', label: 'Campaigns & DNC', icon: Megaphone },
   { href: '/flows', label: 'Call Flow & IVR', icon: GitFork },

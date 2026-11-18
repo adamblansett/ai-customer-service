@@ -83,7 +83,7 @@ stateDiagram-v2
 ## 3. Core Component Responsibilities
 
 ### 1. `packages/db` (Data Layer)
-- **Schema Management**: Typed Drizzle ORM definitions for 19 multi-tenant tables (including `call_flows`, `dnc_entries`, `voiceprints`, `appointments`, `payment_transactions`, and `csat_surveys`, plus `embedding_json` on `knowledge_chunks`).
+- **Schema Management**: Typed Drizzle ORM definitions for 21 multi-tenant tables (including `call_flows`, `dnc_entries`, `voiceprints`, `appointments`, `payment_transactions`, `csat_surveys`, `agent_shifts`, and `webhook_subscriptions`, plus `embedding_json` on `knowledge_chunks`).
 - **Cascade Deletion**: All tenant-scoped entities feature `ON DELETE CASCADE` referencing `tenants.id`.
 - **Database Engine Abstraction**: Supports production PostgreSQL 16 via `node-postgres` (`pg`) and offline in-memory testing via WebAssembly `@electric-sql/pglite`.
 
@@ -116,8 +116,8 @@ stateDiagram-v2
 - **Privacy & Retention**: `/api/v1/privacy/purge-retention`, `/api/v1/privacy/export-data`.
 
 ### 4. `apps/web` (Operator & Agent Console)
-- Next.js 14 App Router application with Tailwind CSS and Lucide icons (20 routes).
-- Pages: `/overview`, `/conversations`, `/calls`, `/queues`, `/appointments`, `/campaigns`, `/flows`, `/customers`, `/knowledge`, `/analytics`, `/billing`, `/simulator`, `/integrations`, `/settings`, `/login`, `/chat-widget`.
+- Next.js 14 App Router application with Tailwind CSS and Lucide icons (21 routes).
+- Pages: `/overview`, `/conversations`, `/calls`, `/queues`, `/workforce`, `/appointments`, `/campaigns`, `/flows`, `/customers`, `/knowledge`, `/analytics`, `/billing`, `/simulator`, `/integrations`, `/settings`, `/login`, `/chat-widget`.
 
 ---
 

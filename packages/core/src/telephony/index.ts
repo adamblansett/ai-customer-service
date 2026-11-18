@@ -7,3 +7,4 @@ export * from './speech.js';
 export * from './audio-bridge.js';
 export * from './telnyx-adapter.js';
 export * from './plivo-adapter.js';
+export * from './amd.js';

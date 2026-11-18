@@ -17,6 +17,10 @@ import {
   SurveyEngine,
   AiEvalRunner,
   RealtimeEventBus,
+  VisualDiagnosticsEngine,
+  WorkforceManager,
+  AmdDetector,
+  TenantWebhookRegistry,
 } from '@customer-service/core';
 
 const globalQueueManager = new CallQueueManager();
@@ -83,6 +87,10 @@ export function createOperationsRouter(db: DatabaseInstance): Router {
   const paymentCollector = new PaymentCollector(db);
   const surveyEngine = new SurveyEngine(db);
   const evalRunner = new AiEvalRunner(db);
+  const visualDiagnostics = new VisualDiagnosticsEngine(db);
+  const workforceManager = new WorkforceManager(db);
+  const amdDetector = new AmdDetector();
+  const webhookRegistry = new TenantWebhookRegistry(db);
 
   // ============================================================================
   // 1. Contact Center Queues & ACD Wallboard Endpoints
@@ -643,6 +651,130 @@ export function createOperationsRouter(db: DatabaseInstance): Router {
       req.on('close', () => {
         unsubscribe();
       });
+    }
+  );
+
+  // ============================================================================
+  // 10. Multimodal Photo & Video Equipment Diagnostics (Qwen 2.5 VL / Llama 3.2 Vision)
+  // ============================================================================
+  router.post(
+    '/:tenantId/diagnostics/vision',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      const { imageUrlOrBase64 = 'photo_furnace_e1.jpg', customerNotes, visionModel } = req.body;
+      const diagnosis = await visualDiagnostics.analyzeEquipmentImage({
+        tenantId,
+        imageUrlOrBase64,
+        customerNotes,
+        visionModel,
+      });
+      res.json({ diagnosis });
+    }
+  );
+
+  // ============================================================================
+  // 11. Workforce Management (WFM), Erlang-C SLA Forecaster & Agent Shifts
+  // ============================================================================
+  router.post(
+    '/:tenantId/workforce/forecast',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
+    async (req: Request, res: Response): Promise<void> => {
+      const {
+        callsPerHour = 120,
+        averageHandleTimeSeconds = 180,
+        targetAnswerSeconds = 20,
+        targetSlaPercent = 80,
+      } = req.body;
+
+      const forecast = workforceManager.calculateErlangCStaffing({
+        callsPerHour: Number(callsPerHour),
+        averageHandleTimeSeconds: Number(averageHandleTimeSeconds),
+        targetAnswerSeconds: Number(targetAnswerSeconds),
+        targetSlaPercent: Number(targetSlaPercent),
+      });
+      res.json({ forecast });
+    }
+  );
+
+  router.get(
+    '/:tenantId/workforce/shifts',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      const shiftDate = req.query.date as string | undefined;
+      const shifts = await workforceManager.listShifts(tenantId, shiftDate);
+      res.json({ shifts });
+    }
+  );
+
+  router.post(
+    '/:tenantId/workforce/shifts',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      const shift = await workforceManager.createShift({
+        tenantId,
+        ...req.body,
+      });
+      res.status(201).json({ shift });
+    }
+  );
+
+  // ============================================================================
+  // 12. Autonomous Voicemail Drop & Answering Machine Detection (AMD)
+  // ============================================================================
+  router.post(
+    '/:tenantId/voice/amd',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
+    async (req: Request, res: Response): Promise<void> => {
+      const decision = amdDetector.classifyCallAnswer(req.body);
+      res.json({ decision });
+    }
+  );
+
+  // ============================================================================
+  // 13. Tenant Outbound Webhook Subscriptions & HMAC Event Dispatcher
+  // ============================================================================
+  router.get(
+    '/:tenantId/webhooks/subscriptions',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      const subscriptions = await webhookRegistry.listSubscriptions(tenantId);
+      res.json({ subscriptions });
+    }
+  );
+
+  router.post(
+    '/:tenantId/webhooks/subscriptions',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      const subscription = await webhookRegistry.createSubscription({
+        tenantId,
+        ...req.body,
+      });
+      res.status(201).json({ subscription });
+    }
+  );
+
+  router.post(
+    '/:tenantId/webhooks/dispatch',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      const { eventType = 'appointment.booked', payload = {} } = req.body;
+      const receipts = await webhookRegistry.dispatchEvent(tenantId, eventType, payload);
+      res.json({ receipts });
     }
   );
 

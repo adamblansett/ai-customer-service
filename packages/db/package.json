@@ -8,10 +8,12 @@
   "exports": {
     ".": {
       "import": "./dist/index.js",
+      "default": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
     "./schema": {
       "import": "./dist/schema/index.js",
+      "default": "./dist/schema/index.js",
       "types": "./dist/schema/index.d.ts"
     }
   },

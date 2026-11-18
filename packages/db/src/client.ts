@@ -317,6 +317,31 @@ export async function initializeSchemaInPglite(pglite: PGlite): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       responded_at TIMESTAMPTZ
     );
+
+    CREATE TABLE IF NOT EXISTS agent_shifts (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      agent_id TEXT NOT NULL,
+      agent_name TEXT NOT NULL,
+      shift_date TEXT NOT NULL,
+      start_hour INTEGER NOT NULL,
+      end_hour INTEGER NOT NULL,
+      role_skill TEXT NOT NULL DEFAULT 'general-inquiry',
+      status TEXT NOT NULL DEFAULT 'scheduled',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS webhook_subscriptions (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      target_url TEXT NOT NULL,
+      signing_secret TEXT NOT NULL,
+      events JSONB NOT NULL DEFAULT '[]'::jsonb,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      delivery_count INTEGER NOT NULL DEFAULT 0,
+      last_status_code INTEGER,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
   `);
 }
 

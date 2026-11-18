@@ -173,6 +173,18 @@ An open-source, self-hosted, Docker-first AI customer-service and contact-center
 36. **Real-Time Server-Sent Events (SSE) Dashboard Stream & Self-Service Tenant Onboarding**:
     - Live tenant-scoped pub/sub event stream (`RealtimeEventBus` at `GET /api/v1/tenants/:tenantId/events/stream`), 1-click multi-tenant organization switcher & creation (`POST /api/v1/tenants`), and Visual Embeddable Chat Widget Customizer (`/chat-widget`).
 
+37. **Multimodal Photo & Video Equipment Diagnostics (`VisualDiagnosticsEngine`)**:
+    - Built-in open-weights vision OCR (`qwen2.5-vl:7b` Apache-2.0 and `llama3.2-vision:11b`) extracting HVAC serial numbers, thermostat LCD fault codes (`E1`, `E4`, `F2`), urgency tiers, and matching troubleshooting articles (`POST /api/v1/tenants/:tenantId/diagnostics/vision`).
+
+38. **Workforce Management (WFM), Erlang-C SLA Forecaster & Agent Shifts (`WorkforceManager` & `/workforce`)**:
+    - Exact Erlang-C traffic intensity & staffing forecaster for 80/20 SLA targets alongside PostgreSQL-backed agent shift rosters (`agent_shifts`).
+
+39. **Autonomous Voicemail Drop & Answering Machine Detection (`AmdDetector`)**:
+    - Acoustic & transcript cadence classifier (`human_answered` vs `machine_detected_beep` / `machine_detected_no_beep`) automatically dropping personalized TwiML voicemails and triggering SMS follow-ups.
+
+40. **Tenant Outbound Event Webhooks & Interactive Admin CLI (`TenantWebhookRegistry` & `npm run cli`)**:
+    - Per-tenant webhook subscriptions (`webhook_subscriptions`) signed with `HMAC-SHA256` (`X-Customer-Service-Signature`), plus the `npm run cli` tool (`status`, `eval`, `wfm-forecast`, `rotate-keys`).
+
 ---
 
 ## Monorepo Architecture
