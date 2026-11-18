@@ -29,6 +29,8 @@ import {
   ExperimentEngine,
   AudioRedactor,
   AgentScorecardService,
+  ApiKeyManager,
+  AuditChainManager,
 } from '@customer-service/core';
 
 const globalQueueManager = new CallQueueManager();
@@ -106,6 +108,8 @@ export function createOperationsRouter(db: DatabaseInstance): Router {
   const experimentEngine = new ExperimentEngine(db);
   const audioRedactor = new AudioRedactor();
   const scorecardService = new AgentScorecardService();
+  const apiKeyManager = new ApiKeyManager(db);
+  const auditChain = new AuditChainManager(db);
 
   // ============================================================================
   // 1. Contact Center Queues & ACD Wallboard Endpoints
@@ -645,6 +649,8 @@ export function createOperationsRouter(db: DatabaseInstance): Router {
 
   router.get(
     '/:tenantId/events/stream',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin', 'agent']),
     async (req: Request, res: Response): Promise<void> => {
       const { tenantId } = req.params;
       res.setHeader('Content-Type', 'text/event-stream');
@@ -773,11 +779,19 @@ export function createOperationsRouter(db: DatabaseInstance): Router {
     requireTenantRole(db, ['owner', 'admin']),
     async (req: Request, res: Response): Promise<void> => {
       const { tenantId } = req.params;
-      const subscription = await webhookRegistry.createSubscription({
-        tenantId,
-        ...req.body,
-      });
-      res.status(201).json({ subscription });
+      try {
+        const subscription = await webhookRegistry.createSubscription({
+          tenantId,
+          ...req.body,
+        });
+        res.status(201).json({ subscription });
+      } catch (err: any) {
+        if (err.name === 'SsrfViolationError') {
+          res.status(403).json({ error: err.message });
+          return;
+        }
+        res.status(400).json({ error: err.message });
+      }
     }
   );
 
@@ -978,6 +992,80 @@ export function createOperationsRouter(db: DatabaseInstance): Router {
     async (req: Request, res: Response): Promise<void> => {
       const { tenantId } = req.params;
       res.json({ leaderboard: scorecardService.getTenantLeaderboard(tenantId) });
+    }
+  );
+
+  // ============================================================================
+  // 21. Scoped M2M API Keys (SHA-256 Hashed at Rest) & Tamper-Evident Audit Chain
+  // ============================================================================
+  router.get(
+    '/:tenantId/security/api-keys',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      const apiKeys = await apiKeyManager.listApiKeys(tenantId);
+      res.json({ apiKeys });
+    }
+  );
+
+  router.post(
+    '/:tenantId/security/api-keys',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      const { name = 'ERP Integration Key', scopes = ['conversations:read'], expiresInDays = 90 } =
+        req.body;
+      const issued = await apiKeyManager.issueApiKey({
+        tenantId,
+        name,
+        scopes,
+        createdBy: req.user?.userId,
+        expiresInDays,
+      });
+
+      await auditChain.appendChainedAuditEvent({
+        tenantId,
+        userId: req.user?.userId,
+        action: 'security.api_key_issued',
+        resourceType: 'api_key',
+        resourceId: issued.apiKey.id,
+        details: { keyPrefix: issued.apiKey.keyPrefix, scopes },
+        ipAddress: req.ip,
+      });
+
+      res.status(201).json(issued);
+    }
+  );
+
+  router.delete(
+    '/:tenantId/security/api-keys/:keyId',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId, keyId } = req.params;
+      const revoked = await apiKeyManager.revokeApiKey(tenantId, keyId);
+      await auditChain.appendChainedAuditEvent({
+        tenantId,
+        userId: req.user?.userId,
+        action: 'security.api_key_revoked',
+        resourceType: 'api_key',
+        resourceId: keyId,
+        ipAddress: req.ip,
+      });
+      res.json({ success: revoked });
+    }
+  );
+
+  router.get(
+    '/:tenantId/security/audit-verify',
+    authMiddleware,
+    requireTenantRole(db, ['owner', 'admin']),
+    async (req: Request, res: Response): Promise<void> => {
+      const { tenantId } = req.params;
+      const verification = await auditChain.verifyTenantAuditChain(tenantId);
+      res.json(verification);
     }
   );
 

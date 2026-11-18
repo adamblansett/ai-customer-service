@@ -8,6 +8,11 @@ export * from './security/biometrics.js';
 export * from './security/webhook-signature.js';
 export * from './security/openapi-spec.js';
 export * from './security/audio-redactor.js';
+export * from './security/ssrf-guard.js';
+export * from './security/totp-mfa.js';
+export * from './security/api-key-manager.js';
+export * from './security/audit-chain.js';
+export * from './security/brute-force-guard.js';
 
 export * from './conversation/types.js';
 export * from './conversation/state-machine.js';

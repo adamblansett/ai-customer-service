@@ -118,6 +118,10 @@ export function createKnowledgeRouter(db: DatabaseInstance): Router {
 
         res.status(201).json({ document: doc, crawlResult });
       } catch (err: any) {
+        if (err.name === 'SsrfViolationError') {
+          res.status(403).json({ error: err.message });
+          return;
+        }
         res.status(500).json({ error: err.message || 'Web crawl failed' });
       }
     }

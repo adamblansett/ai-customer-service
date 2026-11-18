@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { eq, and } from 'drizzle-orm';
 import * as schema from '@customer-service/db/schema';
 import type { DatabaseInstance } from '@customer-service/db';
+import { SsrfGuard } from '../security/ssrf-guard.js';
 
 export interface CreateWebhookSubscriptionInput {
   tenantId: string;
@@ -23,6 +24,7 @@ export class TenantWebhookRegistry {
   constructor(private db: DatabaseInstance) {}
 
   public async createSubscription(input: CreateWebhookSubscriptionInput) {
+    SsrfGuard.assertSafeExternalUrl(input.targetUrl);
     const secret = input.signingSecret || `whsec_${crypto.randomBytes(16).toString('hex')}`;
     const [created] = await this.db
       .insert(schema.webhookSubscriptions)

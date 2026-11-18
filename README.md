@@ -212,6 +212,9 @@ An open-source, self-hosted, Docker-first AI customer-service and contact-center
 49. **Agent QA Scorecards, Leaderboards & Grafana / Prometheus Bundle (`AgentScorecardService` & `deploy/monitoring/`)**:
     - Per-agent QA scorecards & coaching leaderboards (`/workforce`) plus ready-to-import `deploy/monitoring/grafana-dashboard.json` and `deploy/monitoring/prometheus-alerts.yml`.
 
+50. **Enterprise Security Hardening Suite (`SsrfGuard`, `TotpMfaManager`, `ApiKeyManager`, `AuditChainManager` & `LoginBruteForceGuard`)**:
+    - SSRF protection blocking private IPs/loopback/cloud metadata (`169.254.169.254`), RFC 6238 TOTP 2FA with AES-256-GCM secret storage, progressive brute-force login lockout, JWT `HS256` algorithm pinning & `jti` logout revocation, fail-closed production secret enforcement, scoped SHA-256 M2M `api_keys`, SHA-256 tamper-evident hash-chained `audit_events`, and strict CSP/HSTS/Frameguard/Permissions-Policy headers.
+
 ---
 
 ## Monorepo Architecture
@@ -275,7 +278,7 @@ The test suite runs against embedded WebAssembly PostgreSQL (`PGlite`) with zero
 ```bash
 npm test
 ```
-All 177 unit, integration, and security tests will execute and pass across 30 test suites.
+All 182 unit, integration, and security tests will execute and pass across 31 test suites.
 
 ### 4. Build Monorepo
 ```bash

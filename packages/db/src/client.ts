@@ -73,6 +73,8 @@ export async function initializeSchemaInPglite(pglite: PGlite): Promise<void> {
       name TEXT NOT NULL,
       system_role TEXT NOT NULL DEFAULT 'user',
       is_active BOOLEAN NOT NULL DEFAULT true,
+      mfa_enabled BOOLEAN NOT NULL DEFAULT false,
+      mfa_secret_encrypted TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
@@ -372,6 +374,20 @@ export async function initializeSchemaInPglite(pglite: PGlite): Promise<void> {
       variant_a_resolved INTEGER NOT NULL DEFAULT 0,
       variant_b_resolved INTEGER NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'running',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS api_keys (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      key_prefix TEXT NOT NULL,
+      key_hash TEXT NOT NULL UNIQUE,
+      scopes JSONB NOT NULL DEFAULT '[]'::jsonb,
+      created_by TEXT,
+      expires_at TIMESTAMPTZ,
+      revoked_at TIMESTAMPTZ,
+      last_used_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);

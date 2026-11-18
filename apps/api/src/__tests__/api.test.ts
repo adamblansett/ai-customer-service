@@ -841,6 +841,45 @@ describe('API Server Integration & Security Suite', () => {
         .set('Authorization', `Bearer ${acmeAdminToken}`);
       expect(lbRes.status).toBe(200);
       expect(lbRes.body.leaderboard).toHaveLength(3);
+
+      // 10. Security Hardening Verification: OWASP Headers, SSRF Block, SSE Auth, Scoped API Keys, Audit Chain & Session Revocation
+      expect(lbRes.headers['content-security-policy']).toContain("default-src 'self'");
+      expect(lbRes.headers['x-frame-options']).toBe('DENY');
+      expect(lbRes.headers['permissions-policy']).toContain('camera=()');
+
+      const unauthSse = await request(app).get(`/api/v1/tenants/${tenant1Id}/events/stream`);
+      expect(unauthSse.status).toBe(401);
+
+      const ssrfCrawl = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/knowledge/crawl`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({ url: 'http://169.254.169.254/latest/meta-data/' });
+      expect(ssrfCrawl.status).toBe(403);
+
+      const ssrfWebhook = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/webhooks/subscriptions`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({ targetUrl: 'http://127.0.0.1:5432/internal', events: ['*'] });
+      expect(ssrfWebhook.status).toBe(403);
+
+      const apiKeyRes = await request(app)
+        .post(`/api/v1/tenants/${tenant1Id}/security/api-keys`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`)
+        .send({ name: 'M2M ERP Key', scopes: ['appointments:read'] });
+      expect(apiKeyRes.status).toBe(201);
+      expect(apiKeyRes.body.rawKey).toMatch(/^cs_live_/);
+
+      const auditVerify = await request(app)
+        .get(`/api/v1/tenants/${tenant1Id}/security/audit-verify`)
+        .set('Authorization', `Bearer ${acmeAdminToken}`);
+      expect(auditVerify.status).toBe(200);
+      expect(auditVerify.body.intact).toBe(true);
+
+      const mfaEnroll = await request(app)
+        .post('/api/v1/auth/mfa/enroll')
+        .set('Authorization', `Bearer ${acmeAdminToken}`);
+      expect(mfaEnroll.status).toBe(200);
+      expect(mfaEnroll.body.otpauthUri).toContain('otpauth://totp/');
     });
   });
 });

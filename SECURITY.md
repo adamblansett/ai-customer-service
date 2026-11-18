@@ -118,7 +118,25 @@ Operational logs, terminal traces, and error outputs are scrubbed via `redactSen
 
 ---
 
-## 7. Vulnerability Disclosure Process
+## 7. Enterprise Hardening Controls (SOC2 / OWASP ASVS / PCI-DSS)
+
+1. **SSRF (Server-Side Request Forgery) Defense (`SsrfGuard`)**:
+   - Enforced across Web Knowledge Crawling (`/knowledge/crawl`) and Outbound Webhook Subscriptions (`/webhooks/subscriptions`).
+   - Blocks non-HTTP(S) schemes (`file:`, `gopher:`, `ftp:`), loopback (`localhost`, `127.0.0.0/8`, `::1`), RFC 1918 private networks (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), AWS/GCP/Azure link-local metadata endpoints (`169.254.169.254`, `metadata.google.internal`), and internal Docker service hostnames (`postgres`, `builtin-ai`).
+2. **RFC 6238 TOTP Multi-Factor Authentication (`TotpMfaManager`)**:
+   - Constant-time (`crypto.timingSafeEqual`) 6-digit TOTP 2FA verification with AES-256-GCM encrypted TOTP secrets at rest (`/api/v1/auth/mfa/enroll`, `/api/v1/auth/mfa/enable`).
+3. **Progressive Brute-Force Lockout, JWT `HS256` Algorithm Pinning & `jti` Revocation**:
+   - Locks `email + IP` after 5 failed login attempts (`429 AccountTemporarilyLocked` + `Retry-After`).
+   - Pins `algorithms: ['HS256']` on JWT verification, attaches `SameSite=Strict; HttpOnly` cookies, revokes `jti` immediately upon `/api/v1/auth/logout`, and fails closed at startup (`assertProductionSecretsConfigured`) if `NODE_ENV=production` uses default secrets.
+4. **Scoped SHA-256 Hashed M2M API Keys & Tamper-Evident Audit Hash Chain**:
+   - Machine-to-machine keys (`cs_live_...`) are stored exclusively as SHA-256 hashes in PostgreSQL `api_keys` with granular scope enforcement and instant revocation.
+   - Security audit events are linked in a SHA-256 hash chain (`prevHash` $\rightarrow$ `entryHash`) verifiable via `GET /api/v1/tenants/:tenantId/security/audit-verify`.
+5. **Strict OWASP HTTP Security Headers & Carrier Webhook HMAC Verification**:
+   - Enforces `Content-Security-Policy`, `Strict-Transport-Security` (HSTS 1 year + subdomains), `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`, authenticated SSE/WebSocket upgrades, and constant-time Twilio/Plivo/WhatsApp HMAC signature checks.
+
+---
+
+## 8. Vulnerability Disclosure Process
 
 If you discover a security vulnerability in this project:
 1. **Do not disclose publicly**: Do not create a public GitHub issue.

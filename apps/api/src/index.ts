@@ -7,6 +7,7 @@ import { getDatabase } from '@customer-service/db';
 import { MediaStreamGateway, type ParticipantRole, type SupervisorMode } from '@customer-service/core';
 import { createApp } from './app.js';
 import { sharedAudioBridgeManager } from './routes/calls.js';
+import { verifyRawAuthToken } from './middleware/auth.js';
 
 const PORT = Number(process.env.PORT || 3001);
 
@@ -104,6 +105,27 @@ async function startServer() {
           mediaWss.emit('connection', ws, request);
         });
       } else if (pathname === '/api/v1/voice/coaching') {
+        const reqUrl = new URL(request.url || '', `http://${request.headers.host || 'localhost'}`);
+        const wsToken =
+          reqUrl.searchParams.get('token') ||
+          (request.headers.authorization?.startsWith('Bearer ')
+            ? request.headers.authorization.slice(7)
+            : undefined);
+
+        if (wsToken) {
+          try {
+            verifyRawAuthToken(wsToken);
+          } catch {
+            socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+            socket.destroy();
+            return;
+          }
+        } else if (process.env.NODE_ENV === 'production') {
+          socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+          socket.destroy();
+          return;
+        }
+
         coachingWss.handleUpgrade(request, socket, head, (ws) => {
           coachingWss.emit('connection', ws, request);
         });

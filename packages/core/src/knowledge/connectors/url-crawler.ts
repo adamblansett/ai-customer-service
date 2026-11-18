@@ -1,3 +1,5 @@
+import { SsrfGuard } from '../../security/ssrf-guard.js';
+
 export interface CrawlResult {
   title: string;
   uri: string;
@@ -8,8 +10,10 @@ export interface CrawlResult {
 export class WebCrawlerConnector {
   /**
    * Scrapes and converts public HTML pages or documentation into clean text for indexing.
+   * Enforces strict SSRF protection against private IPs, loopback, and cloud metadata endpoints.
    */
   public async crawlUrl(url: string, mockHtml?: string): Promise<CrawlResult> {
+    SsrfGuard.assertSafeExternalUrl(url);
     let rawHtml = mockHtml;
 
     if (!rawHtml) {

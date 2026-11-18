@@ -1,15 +1,21 @@
+import crypto from 'node:crypto';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { eq, and } from 'drizzle-orm';
 import * as schema from '@customer-service/db/schema';
 import type { DatabaseInstance } from '@customer-service/db';
-import { TenantRole, hasPermission, Permission } from '@customer-service/core';
+import {
+  TenantRole,
+  TokenRevocationList,
+  assertProductionSecretsConfigured,
+} from '@customer-service/core';
 
 export interface AuthenticatedUser {
   userId: string;
   email: string;
   name: string;
   systemRole: string;
+  jti?: string;
 }
 
 declare global {
@@ -25,17 +31,37 @@ declare global {
   }
 }
 
+assertProductionSecretsConfigured();
+
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-insecure-jwt-secret-replace-in-production-12345';
 
 export function createAuthToken(user: AuthenticatedUser): string {
-  return jwt.sign(user, JWT_SECRET, { expiresIn: '7d' });
+  const jti = user.jti || `jti_${crypto.randomUUID()}`;
+  return jwt.sign({ ...user, jti }, JWT_SECRET, {
+    algorithm: 'HS256',
+    expiresIn: '7d',
+    issuer: 'ai-customer-service',
+  });
+}
+
+export function verifyRawAuthToken(token: string): AuthenticatedUser {
+  const decoded = jwt.verify(token, JWT_SECRET, {
+    algorithms: ['HS256'],
+  }) as AuthenticatedUser;
+
+  if (TokenRevocationList.isRevoked(decoded.jti)) {
+    throw new Error('TokenRevoked: Session token has been logged out or revoked.');
+  }
+
+  return decoded;
 }
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
+  const queryToken = req.path.endsWith('/events/stream') ? (req.query?.token as string) : undefined;
   const token = authHeader?.startsWith('Bearer ')
     ? authHeader.slice(7)
-    : req.cookies?.auth_token;
+    : req.cookies?.auth_token || queryToken;
 
   if (!token) {
     res.status(401).json({ error: 'Unauthorized: Missing authentication token.' });
@@ -43,11 +69,10 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as AuthenticatedUser;
-    req.user = decoded;
+    req.user = verifyRawAuthToken(token);
     next();
   } catch {
-    res.status(401).json({ error: 'Unauthorized: Invalid or expired token.' });
+    res.status(401).json({ error: 'Unauthorized: Invalid, revoked, or expired token.' });
   }
 }
 
@@ -55,7 +80,10 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
  * Validates that the authenticated user is a verified member of the requested tenant,
  * and possesses one of the required roles.
  */
-export function requireTenantRole(db: DatabaseInstance, allowedRoles: TenantRole[] = ['owner', 'admin', 'agent']) {
+export function requireTenantRole(
+  db: DatabaseInstance,
+  allowedRoles: TenantRole[] = ['owner', 'admin', 'agent']
+) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -101,7 +129,7 @@ export function requireTenantRole(db: DatabaseInstance, allowedRoles: TenantRole
       };
 
       next();
-    } catch (err: any) {
+    } catch {
       res.status(500).json({ error: 'InternalServerError: Failed to verify tenant authorization.' });
     }
   };

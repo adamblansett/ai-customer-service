@@ -37,11 +37,34 @@ import { createOperationsRouter } from './routes/operations.js';
 export function createApp(db: DatabaseInstance): Express {
   const app = express();
 
-  // Basic security and parsing
-  app.use(helmet({ contentSecurityPolicy: false }));
+  // Strict OWASP Security Headers (CSP, HSTS, Frameguard, Referrer-Policy, Permissions-Policy)
+  app.disable('x-powered-by');
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+          upgradeInsecureRequests: null,
+        },
+      },
+      frameguard: { action: 'deny' },
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+      hsts: { maxAge: 31536000, includeSubDomains: true },
+    })
+  );
+  app.use((_req, res, next) => {
+    res.setHeader(
+      'Permissions-Policy',
+      'camera=(), geolocation=(), payment=(), usb=(), magnetometer=()'
+    );
+    next();
+  });
   app.use(
     cors({
-      origin: process.env.CORS_ORIGIN || true,
+      origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : true,
       credentials: true,
     })
   );

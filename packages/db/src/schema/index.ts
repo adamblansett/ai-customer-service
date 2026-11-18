@@ -25,6 +25,8 @@ export const users = pgTable('users', {
   name: text('name').notNull(),
   systemRole: text('system_role').notNull().default('user'), // 'superadmin', 'user'
   isActive: boolean('is_active').notNull().default(true),
+  mfaEnabled: boolean('mfa_enabled').notNull().default(false),
+  mfaSecretEncrypted: text('mfa_secret_encrypted'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
@@ -449,4 +451,24 @@ export const abExperiments = pgTable('ab_experiments', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index('ab_experiments_tenant_idx').on(table.tenantId),
+]);
+
+// -------------------------------------------------------------
+// 24. Scoped M2M API Keys Table (SHA-256 Hashed at Rest)
+// -------------------------------------------------------------
+export const apiKeys = pgTable('api_keys', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  keyPrefix: text('key_prefix').notNull(), // e.g. 'cs_live_9f8a1b'
+  keyHash: text('key_hash').notNull(), // SHA-256 hex digest (raw secret never stored)
+  scopes: jsonb('scopes').notNull().default([]), // e.g. ['conversations:read', 'appointments:write']
+  createdBy: text('created_by'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('api_keys_tenant_idx').on(table.tenantId),
+  uniqueIndex('api_keys_hash_idx').on(table.keyHash),
 ]);
