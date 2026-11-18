@@ -39,6 +39,7 @@ const NAV_ITEMS = [
   { href: '/simulator', label: 'Voice Simulator', icon: PhoneForwarded },
   { href: '/billing', label: 'Billing & Usage', icon: CreditCard },
   { href: '/settings', label: 'Business Settings', icon: Settings },
+  { href: '/security', label: 'Security & Trust', icon: ShieldCheck },
   { href: '/integrations', label: 'BYOK Integrations', icon: KeyRound },
   { href: '/api-docs', label: 'API & LoRA Studio', icon: FileCode2 },
   { href: '/chat-widget', label: 'Website Chat Demo', icon: MessageCircleCode },

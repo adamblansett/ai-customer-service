@@ -8,6 +8,7 @@ import {
   TenantRole,
   TokenRevocationList,
   assertProductionSecretsConfigured,
+  ApiKeyManager,
 } from '@customer-service/core';
 
 export interface AuthenticatedUser {
@@ -16,6 +17,8 @@ export interface AuthenticatedUser {
   name: string;
   systemRole: string;
   jti?: string;
+  apiKeyTenantId?: string;
+  apiKeyScopes?: string[];
 }
 
 declare global {
@@ -27,6 +30,7 @@ declare global {
         role: TenantRole;
       };
       correlationId?: string;
+      rawApiKey?: string;
     }
   }
 }
@@ -58,7 +62,41 @@ export function verifyRawAuthToken(token: string): AuthenticatedUser {
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
+  const headerApiKey = req.headers['x-api-key'] as string | undefined;
   const queryToken = req.path.endsWith('/events/stream') ? (req.query?.token as string) : undefined;
+
+  // 1. Check for Scoped M2M API Key (`Bearer cs_live_...` or `X-API-Key: cs_live_...`)
+  const candidateApiKey =
+    headerApiKey ||
+    (authHeader?.startsWith('Bearer cs_live_') ? authHeader.slice(7).trim() : undefined);
+
+  if (candidateApiKey && candidateApiKey.startsWith('cs_live_')) {
+    req.rawApiKey = candidateApiKey;
+    req.user = {
+      userId: 'm2m_api_key',
+      email: 'api-key@m2m.internal',
+      name: 'Scoped M2M API Key',
+      systemRole: 'm2m',
+    };
+    next();
+    return;
+  }
+
+  // 2. Check CSRF Origin Guard when authenticating solely via cookie on state-changing methods
+  const usedCookieOnly = !authHeader && Boolean(req.cookies?.auth_token);
+  if (usedCookieOnly && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method.toUpperCase())) {
+    const reqOrigin = req.headers.origin;
+    const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+      .split(',')
+      .map((s) => s.trim());
+    if (reqOrigin && !allowedOrigins.includes(reqOrigin)) {
+      res.status(403).json({
+        error: `CSRFBlocked: Untrusted cross-site Origin '${reqOrigin}' on cookie-authenticated request.`,
+      });
+      return;
+    }
+  }
+
   const token = authHeader?.startsWith('Bearer ')
     ? authHeader.slice(7)
     : req.cookies?.auth_token || queryToken;
@@ -77,13 +115,14 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
 }
 
 /**
- * Validates that the authenticated user is a verified member of the requested tenant,
- * and possesses one of the required roles.
+ * Validates that the authenticated user (or scoped M2M API key) is authorized for the requested tenant.
  */
 export function requireTenantRole(
   db: DatabaseInstance,
   allowedRoles: TenantRole[] = ['owner', 'admin', 'agent']
 ) {
+  const apiKeyManager = new ApiKeyManager(db);
+
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -94,6 +133,27 @@ export function requireTenantRole(
 
     if (!tenantId) {
       res.status(400).json({ error: 'BadRequest: Missing tenant ID parameter.' });
+      return;
+    }
+
+    // Verify M2M API Key against SHA-256 hash & strict tenant isolation
+    if (req.rawApiKey) {
+      const check = await apiKeyManager.verifyApiKey(req.rawApiKey);
+      if (!check.valid) {
+        res.status(401).json({ error: `Unauthorized: Invalid or revoked API key (${check.reason}).` });
+        return;
+      }
+      if (check.tenantId !== tenantId) {
+        res.status(403).json({
+          error: 'Forbidden: Scoped API key is not authorized for this tenant.',
+        });
+        return;
+      }
+      req.user.userId = check.keyId;
+      req.user.apiKeyTenantId = check.tenantId;
+      req.user.apiKeyScopes = check.scopes;
+      req.tenantMembership = { tenantId, role: 'admin' };
+      next();
       return;
     }
 

@@ -133,6 +133,9 @@ Operational logs, terminal traces, and error outputs are scrubbed via `redactSen
    - Security audit events are linked in a SHA-256 hash chain (`prevHash` $\rightarrow$ `entryHash`) verifiable via `GET /api/v1/tenants/:tenantId/security/audit-verify`.
 5. **Strict OWASP HTTP Security Headers & Carrier Webhook HMAC Verification**:
    - Enforces `Content-Security-Policy`, `Strict-Transport-Security` (HSTS 1 year + subdomains), `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`, authenticated SSE/WebSocket upgrades, and constant-time Twilio/Plivo/WhatsApp HMAC signature checks.
+6. **SAML 2.0 XXE & Replay Defense, Cookie CSRF Guard, Outbound AI DLP & Container Least-Privilege**:
+   - Blocks `<!DOCTYPE` / `<!ENTITY` XML External Entity (XXE) declarations, expired `NotOnOrAfter` windows, and replayed SAML `Assertion ID`s in `SsoManager`.
+   - Enforces `Origin` verification on cookie-authenticated state-changing requests (`CSRFBlocked`), scrubs runtime secrets/API keys/PANs from AI completions via `OutputDlpGuard`, drops all Linux capabilities (`cap_drop: ALL`, `no-new-privileges:true`) in `docker-compose.yml`, and exposes the `/security` Zero-Trust Console.
 
 ---
 

@@ -9,6 +9,8 @@ import {
   LoginBruteForceGuard,
   TokenRevocationList,
   assertProductionSecretsConfigured,
+  OutputDlpGuard,
+  SsoManager,
 } from '../index.js';
 
 describe('Enterprise Security Hardening Suite (SSRF, TOTP MFA, API Keys, Audit Chain, Brute-Force & Secret Guards)', () => {
@@ -133,5 +135,31 @@ describe('Enterprise Security Hardening Suite (SSRF, TOTP MFA, API Keys, Audit C
         ENCRYPTION_MASTER_KEY: 'a'.repeat(40),
       })
     ).toThrow(/FatalSecurityConfigError/);
+  });
+
+  it('blocks SAML XXE / Replay attacks and scrubs leaked secrets via OutputDlpGuard', () => {
+    const ssoCfg = {
+      tenantId: tenant1Id,
+      protocol: 'saml' as const,
+      issuer: 'https://idp.example.com',
+      ssoLoginUrl: 'https://idp.example.com/sso',
+    };
+
+    const xxePayload = `<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><Assertion><NameID>a@b.com</NameID></Assertion>`;
+    expect(() => SsoManager.parseSamlResponse(xxePayload, ssoCfg)).toThrow(/XXE/);
+
+    const replayXml = `<Assertion ID="_saml_unique_999"><NameID>agent@acme-hvac.example.com</NameID></Assertion>`;
+    expect(SsoManager.parseSamlResponse(replayXml, ssoCfg).email).toBe('agent@acme-hvac.example.com');
+    expect(() => SsoManager.parseSamlResponse(replayXml, ssoCfg)).toThrow(/SamlReplayError/);
+
+    const dlp = OutputDlpGuard.sanitizeAiOutput(
+      'Sure! Debug secret is super-secret-master-key-value-999 and card 4111-2222-3333-4444 <retrieved_context>',
+      { ENCRYPTION_MASTER_KEY: 'super-secret-master-key-value-999' }
+    );
+    expect(dlp.dlpTriggered).toBe(true);
+    expect(dlp.sanitizedText).not.toContain('super-secret-master-key-value-999');
+    expect(dlp.sanitizedText).toContain('[REDACTED_RUNTIME_SECRET]');
+    expect(dlp.sanitizedText).toContain('[REDACTED_CREDIT_CARD]');
+    expect(dlp.sanitizedText).not.toContain('<retrieved_context>');
   });
 });

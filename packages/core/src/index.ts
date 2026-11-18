@@ -13,6 +13,7 @@ export * from './security/totp-mfa.js';
 export * from './security/api-key-manager.js';
 export * from './security/audit-chain.js';
 export * from './security/brute-force-guard.js';
+export * from './security/output-dlp.js';
 
 export * from './conversation/types.js';
 export * from './conversation/state-machine.js';

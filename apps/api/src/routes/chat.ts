@@ -2,7 +2,13 @@ import { Router, Request, Response } from 'express';
 import { eq, and } from 'drizzle-orm';
 import * as schema from '@customer-service/db/schema';
 import type { DatabaseInstance } from '@customer-service/db';
-import { ConversationManager, KnowledgeRetriever, MockAiProvider, ToolRegistry } from '@customer-service/core';
+import {
+  ConversationManager,
+  KnowledgeRetriever,
+  MockAiProvider,
+  ToolRegistry,
+  OutputDlpGuard,
+} from '@customer-service/core';
 
 export function createChatRouter(db: DatabaseInstance): Router {
   const router = Router();
@@ -140,6 +146,9 @@ export function createChatRouter(db: DatabaseInstance): Router {
         responseContent = "I don't have that specific information in my approved business sources. Would you like me to transfer you to a human representative?";
       }
     }
+
+    // Enforce Outbound AI DLP & Secret Exfiltration Guard before persisting or returning chat reply
+    responseContent = OutputDlpGuard.sanitizeAiOutput(responseContent).sanitizedText;
 
     // 3. Record AI message
     const aiMsg = await convManager.addMessage({

@@ -880,6 +880,25 @@ describe('API Server Integration & Security Suite', () => {
         .set('Authorization', `Bearer ${acmeAdminToken}`);
       expect(mfaEnroll.status).toBe(200);
       expect(mfaEnroll.body.otpauthUri).toContain('otpauth://totp/');
+
+      // Authenticate directly with the issued cs_live_ M2M API Key & verify cross-tenant rejection
+      const m2mOk = await request(app)
+        .get(`/api/v1/tenants/${tenant1Id}/appointments`)
+        .set('X-API-Key', apiKeyRes.body.rawKey);
+      expect(m2mOk.status).toBe(200);
+
+      const m2mCrossTenant = await request(app)
+        .get(`/api/v1/tenants/${tenant2Id}/appointments`)
+        .set('X-API-Key', apiKeyRes.body.rawKey);
+      expect(m2mCrossTenant.status).toBe(403);
+
+      // Verify Cookie-only CSRF Origin Guard blocks untrusted cross-site POST
+      const csrfBlocked = await request(app)
+        .post('/api/v1/tenants')
+        .set('Cookie', [`auth_token=${acmeAdminToken}`])
+        .set('Origin', 'https://evil-attacker.example.org')
+        .send({ name: 'CSRF Tenant' });
+      expect(csrfBlocked.status).toBe(403);
     });
   });
 });

@@ -6,6 +6,7 @@ import { ConversationManager } from '../conversation/manager.js';
 import { EscalationEngine } from '../escalation/escalation-engine.js';
 import { AiProvider } from '../ai/provider.interface.js';
 import { ToolRegistry } from '../safety/tool-registry.js';
+import { OutputDlpGuard } from '../security/output-dlp.js';
 import crypto from 'node:crypto';
 
 export interface SimulationResult {
@@ -263,6 +264,9 @@ export class VoiceCallSimulator {
     if (!finalContent) {
       finalContent = "I'm sorry, I don't have that information. Would you like me to transfer you to a human representative?";
     }
+
+    // Enforce Outbound AI DLP & Secret Exfiltration Guard before TTS synthesis
+    finalContent = OutputDlpGuard.sanitizeAiOutput(finalContent).sanitizedText;
 
     // Record AI response
     await this.convManager.addMessage({

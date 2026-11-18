@@ -22,6 +22,8 @@ export interface SsoAuthProfile {
 }
 
 export class SsoManager {
+  private static consumedAssertionIds = new Set<string>();
+
   /**
    * Resolves a directory group list to an internal tenant role.
    * Prioritizes highest permission: owner > admin > agent.
@@ -55,8 +57,36 @@ export class SsoManager {
     xmlAssertion: string,
     config: TenantSsoConfig
   ): SsoAuthProfile {
+    // 0. Block XML External Entity (XXE) & DTD Billion Laughs attacks immediately
+    if (/<!DOCTYPE|<!ENTITY/i.test(xmlAssertion || '')) {
+      throw new Error(
+        'SamlSecurityError: XXE / DTD declarations (<!DOCTYPE / <!ENTITY) are strictly prohibited in SAML assertions.'
+      );
+    }
+
     if (!xmlAssertion || !xmlAssertion.includes('Assertion')) {
       throw new Error('Invalid SAML Response: missing Assertion block');
+    }
+
+    // Enforce SAML Assertion ID anti-replay check when ID attribute is present
+    const assertionIdMatch = xmlAssertion.match(/<(?:\w+:)?Assertion[^>]*\bID="([^"]+)"/i);
+    if (assertionIdMatch) {
+      const assertionId = `${config.tenantId}:${assertionIdMatch[1]}`;
+      if (this.consumedAssertionIds.has(assertionId)) {
+        throw new Error(
+          `SamlReplayError: SAML Assertion ID '${assertionIdMatch[1]}' has already been consumed.`
+        );
+      }
+      this.consumedAssertionIds.add(assertionId);
+    }
+
+    // Enforce SAML Conditions NotOnOrAfter expiration if present
+    const notOnOrAfterMatch = xmlAssertion.match(/\bNotOnOrAfter="([^"]+)"/i);
+    if (notOnOrAfterMatch) {
+      const expMs = Date.parse(notOnOrAfterMatch[1]);
+      if (!Number.isNaN(expMs) && expMs < Date.now()) {
+        throw new Error('SamlExpiredError: SAML Assertion has expired (NotOnOrAfter passed).');
+      }
     }
 
     // 1. Extract NameID (Subject)
