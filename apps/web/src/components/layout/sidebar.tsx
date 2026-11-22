@@ -22,6 +22,8 @@ import {
   Megaphone,
   Calculator,
   FileCode2,
+  FlaskConical,
+  PlugZap,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -40,6 +42,8 @@ const NAV_ITEMS = [
   { href: '/billing', label: 'Billing & Usage', icon: CreditCard },
   { href: '/settings', label: 'Business Settings', icon: Settings },
   { href: '/security', label: 'Security & Trust', icon: ShieldCheck },
+  { href: '/connectors', label: 'Omnichannel Connectors', icon: PlugZap },
+  { href: '/experiments', label: 'AI Evals & Traces', icon: FlaskConical },
   { href: '/integrations', label: 'BYOK Integrations', icon: KeyRound },
   { href: '/api-docs', label: 'API & LoRA Studio', icon: FileCode2 },
   { href: '/chat-widget', label: 'Website Chat Demo', icon: MessageCircleCode },

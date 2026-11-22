@@ -5,6 +5,8 @@ import type { DatabaseInstance } from '@customer-service/db';
 import { KnowledgeRetriever } from '../knowledge/retriever.js';
 import { AppointmentScheduler, APPOINTMENT_AI_TOOLS } from '../scheduling/appointments.js';
 import { PaymentCollector, PAYMENT_AI_TOOLS } from '../billing/payment-collector.js';
+import { EcommerceConnectorService, ECOMMERCE_AI_TOOLS } from '../crm/ecommerce-connectors.js';
+import { TicketingConnectorService, TICKETING_AI_TOOLS } from '../crm/ticketing-connectors.js';
 import {
   ToolCategory,
   ToolExecutionContext,
@@ -19,11 +21,15 @@ export class ToolRegistry {
   private retriever: KnowledgeRetriever;
   private scheduler: AppointmentScheduler;
   private paymentCollector: PaymentCollector;
+  private ecommerce: EcommerceConnectorService;
+  private ticketing: TicketingConnectorService;
 
   constructor(private db: DatabaseInstance) {
     this.retriever = new KnowledgeRetriever(db);
     this.scheduler = new AppointmentScheduler(db);
     this.paymentCollector = new PaymentCollector(db);
+    this.ecommerce = new EcommerceConnectorService(db);
+    this.ticketing = new TicketingConnectorService(db);
   }
 
   /**
@@ -106,6 +112,8 @@ export class ToolRegistry {
       },
       ...APPOINTMENT_AI_TOOLS,
       ...PAYMENT_AI_TOOLS,
+      ...ECOMMERCE_AI_TOOLS,
+      ...TICKETING_AI_TOOLS,
     ];
   }
 
@@ -363,6 +371,42 @@ export class ToolRegistry {
           result = {
             success: true,
             data: { payment },
+          };
+          break;
+        }
+
+        case 'check_order_status': {
+          const validator = z.object({ orderNumber: z.string().min(2) });
+          const parsed = validator.parse(args);
+          const order = await this.ecommerce.lookupOrder({
+            tenantId: context.tenantId,
+            orderNumber: parsed.orderNumber,
+            callerPhone: context.callerPhone,
+          });
+          result = {
+            success: true,
+            data: { order },
+          };
+          break;
+        }
+
+        case 'create_support_ticket': {
+          const validator = z.object({
+            subject: z.string().min(3),
+            description: z.string().min(3),
+            priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),
+            provider: z.enum(['zendesk', 'jira', 'servicenow']).optional(),
+          });
+          const parsed = validator.parse(args);
+          const ticket = await this.ticketing.createTicket({
+            tenantId: context.tenantId,
+            conversationId: context.conversationId,
+            customerPhone: context.callerPhone,
+            ...parsed,
+          });
+          result = {
+            success: true,
+            data: { ticket },
           };
           break;
         }

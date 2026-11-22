@@ -14,6 +14,7 @@ export * from './security/api-key-manager.js';
 export * from './security/audit-chain.js';
 export * from './security/brute-force-guard.js';
 export * from './security/output-dlp.js';
+export * from './security/webauthn-passkey.js';
 
 export * from './conversation/types.js';
 export * from './conversation/state-machine.js';
@@ -36,3 +37,5 @@ export * from './customer/index.js';
 export * from './crm/index.js';
 export * from './scheduling/index.js';
 export * from './i18n/index.js';
+export * from './onboarding/index.js';
+export * from './observability/index.js';

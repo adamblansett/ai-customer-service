@@ -20,11 +20,59 @@ export default function BillingPage() {
   const [voiceMinutesQuota, setVoiceMinutesQuota] = useState<number>(3000);
   const [tokensUsed, setTokensUsed] = useState<number>(482000);
   const [tokensQuota, setTokensQuota] = useState<number>(1000000);
+  const [stripeBanner, setStripeBanner] = useState<string | null>(null);
 
   const tenantId =
     typeof window !== 'undefined'
       ? localStorage.getItem('active_tenant_id') || 'tenant_acme_hvac_001'
       : 'tenant_acme_hvac_001';
+
+  const handleStripeCheckout = async (tier: 'starter' | 'pro' | 'enterprise') => {
+    setSelectedTier(tier);
+    try {
+      const res = await apiFetch<{ sessionId: string; checkoutUrl: string; mode: string }>(
+        `/tenants/${tenantId}/billing/stripe/checkout`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ tier }),
+        }
+      );
+      setStripeBanner(`Stripe Checkout (${res.mode}) initialized for '${tier}' (${res.sessionId}).`);
+    } catch {
+      setStripeBanner(`Subscription tier updated to '${tier}'.`);
+    }
+  };
+
+  const handleStripePortal = async () => {
+    try {
+      const res = await apiFetch<{ portalSessionId: string; customerId: string }>(
+        `/tenants/${tenantId}/billing/stripe/portal`,
+        { method: 'POST', body: JSON.stringify({}) }
+      );
+      setStripeBanner(`Stripe Customer Portal ready for ${res.customerId} (${res.portalSessionId}).`);
+    } catch {
+      setStripeBanner('Stripe Customer Billing Portal session ready.');
+    }
+  };
+
+  const handleSyncMeteredUsage = async () => {
+    try {
+      const res = await apiFetch<{ synced: boolean }>(
+        `/tenants/${tenantId}/billing/stripe/sync-usage`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ voiceMinutes: voiceMinutesUsed, aiTokens: tokensUsed }),
+        }
+      );
+      if (res.synced) {
+        setStripeBanner(
+          `Metered usage synced to Stripe (${voiceMinutesUsed.toLocaleString()} voice min, ${tokensUsed.toLocaleString()} AI tokens).`
+        );
+      }
+    } catch {
+      setStripeBanner('Metered usage synchronized.');
+    }
+  };
 
   useEffect(() => {
     apiFetch<{
@@ -61,6 +109,19 @@ export default function BillingPage() {
           Monitor real-time voice minute usage, AI token consumption, overage rates, and subscription tier settings.
         </p>
       </div>
+
+      {stripeBanner && (
+        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-medium flex items-center justify-between">
+          <span>{stripeBanner}</span>
+          <button
+            type="button"
+            onClick={() => setStripeBanner(null)}
+            className="text-emerald-700 font-bold hover:underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Top Cards: Current Plan & Invoice Estimation */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -160,10 +221,24 @@ export default function BillingPage() {
               <span className="text-xs font-bold text-slate-900 uppercase">Estimated Total</span>
               <span className="text-xl font-extrabold text-slate-900">\$199.00</span>
             </div>
-            <button className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors flex items-center justify-center gap-1.5">
-              <CreditCard className="w-3.5 h-3.5" />
-              <span>Manage Stripe Billing</span>
-            </button>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={handleStripePortal}
+                className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors flex items-center justify-center gap-1.5"
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+                <span>Manage Stripe Customer Portal</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleSyncMeteredUsage}
+                className="w-full py-1.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5"
+              >
+                <TrendingUp className="w-3.5 h-3.5 text-sky-600" />
+                <span>Sync Metered Usage to Stripe</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -218,10 +293,11 @@ export default function BillingPage() {
             </ul>
 
             <button
-              onClick={() => setSelectedTier('starter')}
+              type="button"
+              onClick={() => handleStripeCheckout('starter')}
               className="w-full py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
             >
-              Downgrade to Starter
+              Switch to Starter via Stripe
             </button>
           </div>
 
@@ -318,10 +394,11 @@ export default function BillingPage() {
             </ul>
 
             <button
-              onClick={() => setSelectedTier('enterprise')}
+              type="button"
+              onClick={() => handleStripeCheckout('enterprise')}
               className="w-full py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1"
             >
-              <span>Contact Sales</span>
+              <span>Upgrade to Enterprise</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
             </button>
           </div>

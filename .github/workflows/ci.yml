@@ -1,4 +1,4 @@
-name: CI
+name: CI, Security Supply-Chain & Release Gate
 
 on:
   push:
@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   test-and-build:
-    name: Test & Build (Node ${{ matrix.node-version }})
+    name: Unit, Integration & Next.js Build (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -34,8 +34,123 @@ jobs:
       - name: Copy environment template
         run: cp .env.example .env
 
-      - name: Run automated test suite
-        run: npm test
-
       - name: Build monorepo packages and applications
         run: npm run build
+
+      - name: Typecheck all workspaces
+        run: npm run typecheck
+
+      - name: Run Vitest unit, security, RLS & integration suites
+        run: npm test
+
+  ai-eval-gate:
+    name: AI Golden QA & Red-Team Safety Regression Gate
+    runs-on: ubuntu-latest
+    needs: test-and-build
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'npm'
+
+      - name: Install & Build Core Packages
+        run: |
+          npm ci
+          npm run build --workspace=@customer-service/db
+          npm run build --workspace=@customer-service/core
+
+      - name: Enforce >= 95% Golden QA & Safety Eval Pass Rate
+        run: npm run eval:gate
+
+  supply-chain-security:
+    name: CycloneDX SBOM & Trivy Vulnerability Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate CycloneDX SBOM (sbom.cdx.json)
+        run: npx --yes @cyclonedx/cyclonedx-npm --output-file sbom.cdx.json
+
+      - name: Upload CycloneDX SBOM Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cyclonedx-sbom
+          path: sbom.cdx.json
+
+      - name: Run Trivy Filesystem & Dependency Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '0'
+
+  docker-multi-stage-verify:
+    name: Multi-Stage Container Build Verification (API & Web)
+    runs-on: ubuntu-latest
+    needs: test-and-build
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API Production Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.api
+          push: false
+          tags: ghcr.io/${{ github.repository_owner }}/ai-customer-service-api:ci
+
+      - name: Build Web Production Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.web
+          push: false
+          tags: ghcr.io/${{ github.repository_owner }}/ai-customer-service-web:ci
+
+  e2e-browser:
+    name: Playwright Browser E2E Suite
+    runs-on: ubuntu-latest
+    needs: test-and-build
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'npm'
+
+      - name: Install dependencies & Chromium
+        run: |
+          npm ci
+          npx --yes playwright install --with-deps chromium
+
+      - name: Build Monorepo & Execute Playwright E2E Suite
+        run: |
+          cp .env.example .env
+          npm run build
+          npx --yes playwright test

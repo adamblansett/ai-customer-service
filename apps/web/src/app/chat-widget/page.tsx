@@ -31,14 +31,17 @@ export default function ChatWidgetPage() {
   const [brandColor, setBrandColor] = useState('#0284c7');
   const [widgetPosition, setWidgetPosition] = useState<'bottom-right' | 'bottom-left'>('bottom-right');
   const [defaultLocale, setDefaultLocale] = useState<'en-US' | 'es-US' | 'fr-FR'>('en-US');
+  const [enableVoiceWebRtc, setEnableVoiceWebRtc] = useState(true);
+  const [voiceCallActive, setVoiceCallActive] = useState(false);
   const [copiedSnippet, setCopiedSnippet] = useState(false);
 
   const embedScriptSnippet = `<script
-  src="https://cdn.acme-hvac.example.com/widget.js"
-  data-tenant-slug="acme-hvac"
-  data-brand-color="${brandColor}"
+  src="http://localhost:3001/api/v1/widget.js"
+  data-tenant="tenant_acme_hvac_001"
+  data-primary-color="${brandColor}"
   data-position="${widgetPosition}"
   data-locale="${defaultLocale}"
+  data-enable-voice="${enableVoiceWebRtc}"
   async
 ></script>`;
 
@@ -139,10 +142,19 @@ export default function ChatWidgetPage() {
               <h2 className="text-sm font-bold leading-tight">{businessName}</h2>
               <span className="text-[11px] text-sky-100 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>
-                AI Support Online
+                {voiceCallActive ? 'Click-to-Call WebRTC Voice Active' : 'AI Support Online'}
               </span>
             </div>
           </div>
+          {enableVoiceWebRtc && (
+            <button
+              type="button"
+              onClick={() => setVoiceCallActive((v) => !v)}
+              className="px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-xs font-bold transition-colors"
+            >
+              {voiceCallActive ? 'End Voice' : 'Click-to-Call'}
+            </button>
+          )}
         </div>
 
         {/* Widget Messages */}

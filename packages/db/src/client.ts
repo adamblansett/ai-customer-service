@@ -35,6 +35,9 @@ export async function getDatabase(options: DatabaseOptions = {}): Promise<Databa
     });
     globalPgPool = pool;
     const db = drizzlePg(pool, { schema });
+    (db as any).__rawExec = async (sqlText: string) => {
+      await pool.query(sqlText);
+    };
     globalDb = db;
     return db;
   }
@@ -42,6 +45,9 @@ export async function getDatabase(options: DatabaseOptions = {}): Promise<Databa
   // Fallback or explicit embedded mode (runs real Postgres in WASM for offline tests)
   const pglite = new PGlite();
   const db = drizzlePglite(pglite, { schema });
+  (db as any).__rawExec = async (sqlText: string) => {
+    await pglite.exec(sqlText);
+  };
 
   // Initialize schema tables in PGlite
   await initializeSchemaInPglite(pglite);
@@ -389,6 +395,105 @@ export async function initializeSchemaInPglite(pglite: PGlite): Promise<void> {
       revoked_at TIMESTAMPTZ,
       last_used_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS passkey_credentials (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      credential_id TEXT NOT NULL UNIQUE,
+      public_key_pem TEXT NOT NULL,
+      algorithm TEXT NOT NULL DEFAULT 'ES256',
+      sign_count INTEGER NOT NULL DEFAULT 0,
+      device_name TEXT NOT NULL DEFAULT 'Security Key / Passkey',
+      transports JSONB NOT NULL DEFAULT '[]'::jsonb,
+      last_used_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS stripe_subscriptions (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL UNIQUE REFERENCES tenants(id) ON DELETE CASCADE,
+      stripe_customer_id TEXT NOT NULL,
+      stripe_subscription_id TEXT NOT NULL,
+      tier TEXT NOT NULL DEFAULT 'starter',
+      status TEXT NOT NULL DEFAULT 'active',
+      cancel_at_period_end BOOLEAN NOT NULL DEFAULT false,
+      current_period_end TIMESTAMPTZ NOT NULL,
+      last_synced_voice_minutes INTEGER NOT NULL DEFAULT 0,
+      last_synced_ai_tokens INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS external_orders (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL DEFAULT 'shopify',
+      order_number TEXT NOT NULL,
+      customer_email TEXT,
+      customer_phone TEXT,
+      fulfillment_status TEXT NOT NULL DEFAULT 'fulfilled',
+      financial_status TEXT NOT NULL DEFAULT 'paid',
+      total_cents INTEGER NOT NULL DEFAULT 0,
+      currency TEXT NOT NULL DEFAULT 'USD',
+      tracking_number TEXT,
+      tracking_url TEXT,
+      return_eligible BOOLEAN NOT NULL DEFAULT true,
+      items JSONB NOT NULL DEFAULT '[]'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(tenant_id, order_number)
+    );
+
+    CREATE TABLE IF NOT EXISTS external_tickets (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL DEFAULT 'zendesk',
+      external_key TEXT NOT NULL,
+      conversation_id TEXT,
+      customer_phone TEXT,
+      subject TEXT NOT NULL,
+      description TEXT NOT NULL,
+      priority TEXT NOT NULL DEFAULT 'normal',
+      status TEXT NOT NULL DEFAULT 'open',
+      assignee TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(tenant_id, external_key)
+    );
+
+    CREATE TABLE IF NOT EXISTS calendar_connections (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL DEFAULT 'google_calendar',
+      calendar_id TEXT NOT NULL,
+      technician_name TEXT NOT NULL,
+      busy_windows JSONB NOT NULL DEFAULT '[]'::jsonb,
+      sync_token TEXT,
+      status TEXT NOT NULL DEFAULT 'connected',
+      last_synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS trace_spans (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      conversation_id TEXT,
+      trace_id TEXT NOT NULL,
+      span_id TEXT NOT NULL,
+      parent_span_id TEXT,
+      operation_name TEXT NOT NULL,
+      stage TEXT NOT NULL,
+      duration_ms INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'ok',
+      attributes JSONB NOT NULL DEFAULT '{}'::jsonb,
+      started_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      version TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      checksum TEXT NOT NULL,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
 }

@@ -472,3 +472,138 @@ export const apiKeys = pgTable('api_keys', {
   index('api_keys_tenant_idx').on(table.tenantId),
   uniqueIndex('api_keys_hash_idx').on(table.keyHash),
 ]);
+
+// -------------------------------------------------------------
+// 25. WebAuthn / FIDO2 Passkey Credentials Table
+// -------------------------------------------------------------
+export const passkeyCredentials = pgTable('passkey_credentials', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  credentialId: text('credential_id').notNull(), // base64url credential ID
+  publicKeyPem: text('public_key_pem').notNull(), // SPKI PEM public key (ES256 / Ed25519)
+  algorithm: text('algorithm').notNull().default('ES256'),
+  signCount: integer('sign_count').notNull().default(0),
+  deviceName: text('device_name').notNull().default('Security Key / Passkey'),
+  transports: jsonb('transports').notNull().default([]),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('passkeys_user_idx').on(table.userId),
+  uniqueIndex('passkeys_cred_id_idx').on(table.credentialId),
+]);
+
+// -------------------------------------------------------------
+// 26. Stripe SaaS Subscriptions & Metered Sync Table
+// -------------------------------------------------------------
+export const stripeSubscriptions = pgTable('stripe_subscriptions', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  stripeCustomerId: text('stripe_customer_id').notNull(),
+  stripeSubscriptionId: text('stripe_subscription_id').notNull(),
+  tier: text('tier').notNull().default('starter'), // 'starter', 'pro', 'enterprise'
+  status: text('status').notNull().default('active'), // 'trialing', 'active', 'past_due', 'canceled'
+  cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
+  currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }).notNull(),
+  lastSyncedVoiceMinutes: integer('last_synced_voice_minutes').notNull().default(0),
+  lastSyncedAiTokens: integer('last_synced_ai_tokens').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('stripe_subs_tenant_idx').on(table.tenantId),
+  index('stripe_subs_customer_idx').on(table.stripeCustomerId),
+]);
+
+// -------------------------------------------------------------
+// 27. External E-Commerce Orders Table (Shopify / WooCommerce)
+// -------------------------------------------------------------
+export const externalOrders = pgTable('external_orders', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  provider: text('provider').notNull().default('shopify'), // 'shopify', 'woocommerce'
+  orderNumber: text('order_number').notNull(),
+  customerEmail: text('customer_email'),
+  customerPhone: text('customer_phone'),
+  fulfillmentStatus: text('fulfillment_status').notNull().default('fulfilled'), // 'unfulfilled', 'in_transit', 'delivered', 'returned'
+  financialStatus: text('financial_status').notNull().default('paid'), // 'paid', 'refunded', 'pending'
+  totalCents: integer('total_cents').notNull().default(0),
+  currency: text('currency').notNull().default('USD'),
+  trackingNumber: text('tracking_number'),
+  trackingUrl: text('tracking_url'),
+  returnEligible: boolean('return_eligible').notNull().default(true),
+  items: jsonb('items').notNull().default([]),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('ext_orders_tenant_idx').on(table.tenantId),
+  uniqueIndex('ext_orders_number_idx').on(table.tenantId, table.orderNumber),
+]);
+
+// -------------------------------------------------------------
+// 28. External Helpdesk & ITSM Tickets Table (Zendesk / Jira / ServiceNow)
+// -------------------------------------------------------------
+export const externalTickets = pgTable('external_tickets', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  provider: text('provider').notNull().default('zendesk'), // 'zendesk', 'jira', 'servicenow'
+  externalKey: text('external_key').notNull(), // e.g. 'ZD-10492', 'SUP-401', 'INC0010921'
+  conversationId: text('conversation_id'),
+  customerPhone: text('customer_phone'),
+  subject: text('subject').notNull(),
+  description: text('description').notNull(),
+  priority: text('priority').notNull().default('normal'), // 'low', 'normal', 'high', 'urgent'
+  status: text('status').notNull().default('open'), // 'open', 'in_progress', 'resolved', 'closed'
+  assignee: text('assignee'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('ext_tickets_tenant_idx').on(table.tenantId),
+  uniqueIndex('ext_tickets_key_idx').on(table.tenantId, table.externalKey),
+]);
+
+// -------------------------------------------------------------
+// 29. Two-Way Technician Calendar Connections Table (Google / Microsoft 365)
+// -------------------------------------------------------------
+export const calendarConnections = pgTable('calendar_connections', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  provider: text('provider').notNull().default('google_calendar'), // 'google_calendar', 'microsoft_365'
+  calendarId: text('calendar_id').notNull(),
+  technicianName: text('technician_name').notNull(),
+  busyWindows: jsonb('busy_windows').notNull().default([]), // [{ start: ISO, end: ISO, summary: string }]
+  syncToken: text('sync_token'),
+  status: text('status').notNull().default('connected'),
+  lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('cal_conn_tenant_idx').on(table.tenantId),
+]);
+
+// -------------------------------------------------------------
+// 30. OpenTelemetry Distributed Trace Spans Table
+// -------------------------------------------------------------
+export const traceSpans = pgTable('trace_spans', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  conversationId: text('conversation_id'),
+  traceId: text('trace_id').notNull(),
+  spanId: text('span_id').notNull(),
+  parentSpanId: text('parent_span_id'),
+  operationName: text('operation_name').notNull(),
+  stage: text('stage').notNull(), // 'stt', 'rag', 'llm', 'tool', 'dlp', 'tts', 'http'
+  durationMs: integer('duration_ms').notNull().default(0),
+  status: text('status').notNull().default('ok'), // 'ok', 'error'
+  attributes: jsonb('attributes').notNull().default({}),
+  startedAt: timestamp('started_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('trace_spans_tenant_idx').on(table.tenantId),
+  index('trace_spans_trace_idx').on(table.tenantId, table.traceId),
+]);
+
+// -------------------------------------------------------------
+// 31. Schema Migrations Ledger Table
+// -------------------------------------------------------------
+export const schemaMigrations = pgTable('schema_migrations', {
+  version: text('version').primaryKey(),
+  name: text('name').notNull(),
+  checksum: text('checksum').notNull(),
+  appliedAt: timestamp('applied_at', { withTimezone: true }).defaultNow().notNull(),
+});

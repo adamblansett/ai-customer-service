@@ -3,6 +3,7 @@ import { eq, and, ne } from 'drizzle-orm';
 import * as schema from '@customer-service/db/schema';
 import type { DatabaseInstance } from '@customer-service/db';
 import type { AiToolDefinition } from '../ai/types.js';
+import { CalendarSyncService } from './calendar-sync.js';
 
 export interface AvailableTimeSlot {
   slotId: string;
@@ -197,13 +198,37 @@ export class AppointmentScheduler {
       }
     }
 
+    const calendarSync = new CalendarSyncService(this.db);
     let chosenTech = input.technicianName;
     if (chosenTech) {
       if (busyTechs.has(chosenTech)) {
         throw new Error(`Technician ${chosenTech} is already booked during this time window.`);
       }
+      const extConflict = await calendarSync.hasExternalBusyConflict(
+        input.tenantId,
+        chosenTech,
+        new Date(startMs),
+        new Date(endMs)
+      );
+      if (extConflict.conflict) {
+        throw new Error(
+          `Technician ${chosenTech} has an external calendar block (${extConflict.conflictingEvent?.summary || 'Busy'}) during this window.`
+        );
+      }
     } else {
-      chosenTech = DEFAULT_TECHNICIANS.find((t) => !busyTechs.has(t));
+      for (const candidate of DEFAULT_TECHNICIANS) {
+        if (busyTechs.has(candidate)) continue;
+        const extConflict = await calendarSync.hasExternalBusyConflict(
+          input.tenantId,
+          candidate,
+          new Date(startMs),
+          new Date(endMs)
+        );
+        if (!extConflict.conflict) {
+          chosenTech = candidate;
+          break;
+        }
+      }
       if (!chosenTech) {
         throw new Error('No technicians are available during the requested time window.');
       }

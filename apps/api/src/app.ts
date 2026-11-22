@@ -3,7 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import type { DatabaseInstance } from '@customer-service/db';
-import { generateOpenApiSpec } from '@customer-service/core';
+import { generateOpenApiSpec, WidgetSdkGenerator } from '@customer-service/core';
 import { correlationMiddleware } from './middleware/correlation.js';
 import { errorHandler } from './middleware/error-handler.js';
 import {
@@ -33,6 +33,8 @@ import { createFlowsRouter } from './routes/flows.js';
 import { createCustomersRouter } from './routes/customers.js';
 import { createEnterpriseRouter } from './routes/enterprise.js';
 import { createOperationsRouter } from './routes/operations.js';
+import { createSaasConnectorsRouter } from './routes/saas-connectors.js';
+import { createSocialAndWebhooksRouter } from './routes/social.js';
 
 export function createApp(db: DatabaseInstance): Express {
   const app = express();
@@ -69,7 +71,14 @@ export function createApp(db: DatabaseInstance): Express {
     })
   );
   app.use(cookieParser());
-  app.use(express.json({ limit: '5mb' }));
+  app.use(
+    express.json({
+      limit: '5mb',
+      verify: (req: any, _res, buf) => {
+        req.rawBody = buf.toString('utf8');
+      },
+    })
+  );
   app.use(express.urlencoded({ extended: true, limit: '5mb' }));
   app.use(correlationMiddleware);
   app.use(metricsMiddleware);
@@ -88,6 +97,19 @@ export function createApp(db: DatabaseInstance): Express {
   app.get('/api/v1/openapi.json', (req, res) => {
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     res.json(generateOpenApiSpec(baseUrl));
+  });
+
+  // Standalone Embeddable Web Chat & Click-to-Call WebRTC Voice SDK
+  app.get('/api/v1/widget.js', (req, res) => {
+    const baseUrl = `${req.protocol}://${req.get('host')}/api/v1`;
+    res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.send(
+      WidgetSdkGenerator.generateBundle({
+        defaultApiBaseUrl: baseUrl,
+        tenantId: typeof req.query.tenantId === 'string' ? req.query.tenantId : undefined,
+      })
+    );
   });
 
   app.get('/health/ready', async (_req, res) => {
@@ -117,6 +139,8 @@ export function createApp(db: DatabaseInstance): Express {
   app.use('/api/v1/tenants', createCustomersRouter(db));
   app.use('/api/v1/tenants', createEnterpriseRouter(db));
   app.use('/api/v1/tenants', createOperationsRouter(db));
+  app.use('/api/v1/tenants', createSaasConnectorsRouter(db));
+  app.use('/api/v1', createSocialAndWebhooksRouter(db));
   app.use('/api/v1/voice', webhookSignatureMiddleware, createTelephonyRouter(db));
   app.use('/api/v1/chat', createChatRouter(db));
   app.use('/api/v1/sms', webhookSignatureMiddleware, createSmsRouter(db));

@@ -13,6 +13,10 @@ dist
 build
 .next/
 out/
+*.tsbuildinfo
+playwright-report/
+test-results/
+sbom.cdx.json
 
 # Environment and Secrets
 .env

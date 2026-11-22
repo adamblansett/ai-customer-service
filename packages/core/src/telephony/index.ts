@@ -8,3 +8,4 @@ export * from './audio-bridge.js';
 export * from './telnyx-adapter.js';
 export * from './plivo-adapter.js';
 export * from './amd.js';
+export * from './widget-sdk.js';
