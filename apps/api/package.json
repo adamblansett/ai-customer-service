@@ -23,7 +23,7 @@
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "ws": "^8.18.0",
-    "zod": "^3.24.2"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -37,6 +37,6 @@
     "supertest": "^7.0.0",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3",
-    "vitest": "^3.2.7"
+    "vitest": "^5.1.1"
   }
 }

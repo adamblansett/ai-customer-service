@@ -21,12 +21,12 @@
     "@customer-service/db": "*",
     "bcryptjs": "^2.4.3",
     "drizzle-orm": "^0.45.4",
-    "zod": "^3.24.2"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.13.4",
     "typescript": "^5.7.3",
-    "vitest": "^3.2.7"
+    "vitest": "^5.1.1"
   }
 }
