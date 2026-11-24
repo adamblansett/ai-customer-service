@@ -118,7 +118,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile.api
+          file: ./apps/api/Dockerfile
           push: false
           tags: ghcr.io/${{ github.repository_owner }}/ai-customer-service-api:ci
 
@@ -126,7 +126,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile.web
+          file: ./apps/web/Dockerfile
           push: false
           tags: ghcr.io/${{ github.repository_owner }}/ai-customer-service-web:ci
 
@@ -147,10 +147,11 @@ jobs:
       - name: Install dependencies & Chromium
         run: |
           npm ci
-          npx --yes playwright install --with-deps chromium
+          npx playwright install --with-deps chromium
 
       - name: Build Monorepo & Execute Playwright E2E Suite
+        env:
+          DATABASE_URL: ""
         run: |
-          cp .env.example .env
           npm run build
-          npx --yes playwright test
+          npx playwright test

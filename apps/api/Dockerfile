@@ -8,6 +8,7 @@ COPY package*.json tsconfig.base.json ./
 COPY packages/db/package.json ./packages/db/
 COPY packages/core/package.json ./packages/core/
 COPY apps/api/package.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
 
 # Install all dependencies for build
 RUN npm ci
@@ -36,6 +37,7 @@ COPY package*.json ./
 COPY packages/db/package.json ./packages/db/
 COPY packages/core/package.json ./packages/core/
 COPY apps/api/package.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
 
 # Install only production dependencies
 RUN npm ci --omit=dev
