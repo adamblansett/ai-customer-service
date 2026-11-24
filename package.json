@@ -9,10 +9,10 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build --workspace=@customer-service/db && npm run build --workspace=@customer-service/core && npm run build --workspace=@customer-service/api && npm run build --workspace=@customer-service/web",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspace=@customer-service/db && npm run typecheck --workspace=@customer-service/core && npm run typecheck --workspace=@customer-service/api && npm run typecheck --workspace=@customer-service/web",
     "cli": "npx tsx scripts/cli/admin-cli.ts",
     "db:migrate": "npx tsx scripts/cli/db-migrate.ts up",
     "db:rollback": "npx tsx scripts/cli/db-migrate.ts down",
